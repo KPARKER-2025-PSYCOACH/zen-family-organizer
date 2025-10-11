@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Calendar } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 
 const Onboarding = () => {
@@ -13,8 +13,6 @@ const Onboarding = () => {
   const [step, setStep] = useState(1);
   const [familyName, setFamilyName] = useState("");
   const [timezone, setTimezone] = useState("");
-  const [termStartDate, setTermStartDate] = useState("");
-  const [termEndDate, setTermEndDate] = useState("");
 
   const handleContinue = () => {
     if (step === 1) {
@@ -28,8 +26,6 @@ const Onboarding = () => {
         toast.error("Please select your timezone");
         return;
       }
-      setStep(3);
-    } else if (step === 3) {
       toast.success("Welcome to Parent Assist! Let's get organised.");
       navigate("/dashboard");
     }
@@ -51,7 +47,7 @@ const Onboarding = () => {
 
         {/* Progress indicator */}
         <div className="flex justify-center gap-2">
-          {[1, 2, 3].map((s) => (
+          {[1, 2].map((s) => (
             <div
               key={s}
               className={`h-2 w-16 rounded-full transition-all ${
@@ -66,12 +62,10 @@ const Onboarding = () => {
             <CardTitle>
               {step === 1 && "About your family"}
               {step === 2 && "Time and location"}
-              {step === 3 && "School term dates"}
             </CardTitle>
             <CardDescription>
               {step === 1 && "We'll use this to personalise your experience"}
               {step === 2 && "So we can show times that make sense for you"}
-              {step === 3 && "Optional: helps us prepare for term time"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -112,40 +106,6 @@ const Onboarding = () => {
               </div>
             )}
 
-            {step === 3 && (
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="termStart">Term start date (optional)</Label>
-                  <Input
-                    id="termStart"
-                    type="date"
-                    value={termStartDate}
-                    onChange={(e) => setTermStartDate(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="termEnd">Term end date (optional)</Label>
-                  <Input
-                    id="termEnd"
-                    type="date"
-                    value={termEndDate}
-                    onChange={(e) => setTermEndDate(e.target.value)}
-                  />
-                </div>
-                <div className="bg-secondary/50 rounded-lg p-4 border space-y-2">
-                  <div className="flex items-start gap-2">
-                    <Calendar className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="text-sm font-medium">Why term dates?</p>
-                      <p className="text-sm text-muted-foreground">
-                        We'll remind you about uniform orders, PE kit, and school events at the right time.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="flex gap-3 pt-4">
               {step > 1 && (
                 <Button variant="outline" onClick={handleBack} className="flex-1">
@@ -153,7 +113,7 @@ const Onboarding = () => {
                 </Button>
               )}
               <Button onClick={handleContinue} className="flex-1">
-                {step === 3 ? "Finish setup" : "Continue"}
+                {step === 2 ? "Finish setup" : "Continue"}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
