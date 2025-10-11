@@ -7,27 +7,27 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4">
+      <header className="border-b gradient-warm">
+        <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4 sm:gap-6">
               <img 
                 src={logoImage} 
                 alt="Parent Assist logo - AI that lightens your mental load" 
-                className="h-16 w-auto"
+                className="h-24 sm:h-32 w-auto"
               />
-              <p className="text-sm sm:text-base text-muted-foreground text-center sm:text-left">
+              <p className="text-xl sm:text-2xl lg:text-3xl font-medium text-foreground text-center sm:text-left">
                 AI that lightens your mental load.
               </p>
             </div>
             <div className="flex gap-3">
               <Link to="/onboarding">
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="default">
                   Log in
                 </Button>
               </Link>
               <Link to="/onboarding">
-                <Button size="sm">
+                <Button size="default">
                   Register
                 </Button>
               </Link>
@@ -35,6 +35,22 @@ const Index = () => {
           </div>
         </div>
       </header>
+
+      {/* Intro Section */}
+      <section className="py-16 lg:py-24 gradient-soft">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-6">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+              Family life, made lighter
+            </h2>
+            <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed">
+              From scattered calendars to sorted meals, Parent Assist brings everything together. 
+              One gentle hub that scans your inbox, plans your week, and reminds you what matters—so 
+              you can spend less time juggling and more time with the people you love.
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Features Grid */}
       <section className="py-20 lg:py-32">
