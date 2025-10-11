@@ -37,7 +37,7 @@ const Index = () => {
       </header>
 
       {/* Intro Section */}
-      <section className="py-16 lg:py-24 gradient-soft">
+      <section className="py-16 lg:py-24">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center space-y-6">
             <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
@@ -53,7 +53,7 @@ const Index = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 lg:py-32">
+      <section className="py-20 lg:py-32 gradient-soft">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
