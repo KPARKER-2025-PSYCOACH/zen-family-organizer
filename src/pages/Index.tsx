@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Calendar, Mail, UtensilsCrossed, Gift } from "lucide-react";
 import { Link } from "react-router-dom";
-import logoImage from "@/assets/parent-assist-logo.png";
+import logoImage from "@/assets/parent-assist-logo-transparent.png";
 
 const Index = () => {
   return (
@@ -14,7 +14,7 @@ const Index = () => {
               <img 
                 src={logoImage} 
                 alt="Parent Assist logo - AI that lightens your mental load" 
-                className="h-48 sm:h-64 w-auto"
+                className="h-20 sm:h-24 w-auto"
               />
               <p className="text-xl sm:text-2xl lg:text-3xl font-medium text-foreground text-center sm:text-left">
                 AI that lightens your mental load.
