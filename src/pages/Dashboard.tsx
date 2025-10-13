@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus } from "lucide-react";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Dashboard = () => {
@@ -91,6 +91,10 @@ const Dashboard = () => {
               <MealItem day="Thu" meal="Chicken stir-fry" />
               <MealItem day="Fri" meal="Fish & chips" />
             </div>
+            <Button className="w-full mt-4">
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              Shop for all meals
+            </Button>
           </DashboardCard>
 
           {/* Gift suggestions */}
