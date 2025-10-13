@@ -15,7 +15,7 @@ const Dashboard = () => {
               <img 
                 src={logoImage} 
                 alt="Parent Assist logo" 
-                className="h-12 w-auto"
+                className="h-20 w-auto"
               />
               <div>
                 <h1 className="text-2xl font-bold">Parent Assist</h1>
