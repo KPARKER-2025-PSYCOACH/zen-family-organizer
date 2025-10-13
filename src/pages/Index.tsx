@@ -39,17 +39,15 @@ const Index = () => {
       {/* Intro Section */}
       <section className="pt-12 pb-6 lg:pt-16 lg:pb-8">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto">
-            <div className="bg-card rounded-2xl p-8 lg:p-10 shadow-soft border space-y-4">
-              <h2 className="text-3xl lg:text-4xl font-bold text-foreground text-center">
-                Family life, made lighter
-              </h2>
-              <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed text-center">
-                From scattered calendars to sorted meals, Parent Assist brings everything together. 
-                One gentle hub that scans your inbox, plans your week, and reminds you what matters—so 
-                you can spend less time juggling and more time with the people you love.
-              </p>
-            </div>
+          <div className="bg-card rounded-2xl p-8 lg:p-10 shadow-soft border space-y-4">
+            <h2 className="text-3xl lg:text-4xl font-bold text-foreground text-center">
+              Family life, made lighter
+            </h2>
+            <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed text-center">
+              From scattered calendars to sorted meals, Parent Assist brings everything together. 
+              One gentle hub that scans your inbox, plans your week, and reminds you what matters—so 
+              you can spend less time juggling and more time with the people you love.
+            </p>
           </div>
         </div>
       </section>
