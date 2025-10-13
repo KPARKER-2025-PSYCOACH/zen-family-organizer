@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
+import logoImage from "@/assets/parent-assist-logo.png";
 
 const Dashboard = () => {
   return (
@@ -10,9 +11,16 @@ const Dashboard = () => {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold">Parent Assist</h1>
-              <p className="text-sm text-muted-foreground">The Smith Family</p>
+            <div className="flex items-center gap-4">
+              <img 
+                src={logoImage} 
+                alt="Parent Assist logo" 
+                className="h-12 w-auto"
+              />
+              <div>
+                <h1 className="text-2xl font-bold">Parent Assist</h1>
+                <p className="text-sm text-muted-foreground">The Smith Family</p>
+              </div>
             </div>
             <Link to="/settings">
               <Button variant="outline" size="icon">
