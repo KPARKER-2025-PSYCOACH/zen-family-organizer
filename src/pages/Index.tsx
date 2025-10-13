@@ -14,7 +14,7 @@ const Index = () => {
               <img 
                 src={logoImage} 
                 alt="Parent Assist logo - AI that lightens your mental load" 
-                className="h-24 sm:h-32 w-auto"
+                className="h-48 sm:h-64 w-auto"
               />
               <p className="text-xl sm:text-2xl lg:text-3xl font-medium text-foreground text-center sm:text-left">
                 AI that lightens your mental load.
