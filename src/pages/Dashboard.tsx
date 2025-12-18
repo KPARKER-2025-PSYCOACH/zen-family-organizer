@@ -54,9 +54,9 @@ const Dashboard = () => {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} />
-            <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} />
-            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} />
+            <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} />
+            <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" />
+            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right bottom" />
             <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} />
           </div>
         </div>
@@ -168,14 +168,35 @@ const Dashboard = () => {
   );
 };
 
-const QuickStat = ({ label, value, icon, backgroundImage }: { label: string; value: string; icon: React.ReactNode; backgroundImage?: string }) => (
+const QuickStat = ({ 
+  label, 
+  value, 
+  icon, 
+  backgroundImage, 
+  imagePosition = "right center",
+  imageStyle,
+  opacity = 40 
+}: { 
+  label: string; 
+  value: string; 
+  icon: React.ReactNode; 
+  backgroundImage?: string;
+  imagePosition?: string;
+  imageStyle?: React.CSSProperties;
+  opacity?: number;
+}) => (
   <Card className="relative overflow-hidden shadow-soft">
-    {/* Faded background image - aligned right */}
+    {/* Faded background image */}
     {backgroundImage && (
       <>
         <div 
-          className="absolute inset-0 bg-cover bg-right opacity-40"
-          style={{ backgroundImage: `url(${backgroundImage})` }}
+          className="absolute inset-0 bg-cover"
+          style={{ 
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundPosition: imagePosition,
+            opacity: opacity / 100,
+            ...imageStyle
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
       </>
