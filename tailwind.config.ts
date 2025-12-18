@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Work Sans', 'system-ui', 'sans-serif'],
-        serif: ['Source Serif 4', 'Georgia', 'serif'],
+        sans: ['Cormorant Garamond', 'Georgia', 'serif'],
+        script: ['Pinyon Script', 'cursive'],
       },
       colors: {
         border: "hsl(var(--border))",
