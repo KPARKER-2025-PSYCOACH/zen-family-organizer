@@ -28,12 +28,12 @@ const Dashboard = () => {
         {/* Settings and Logout buttons */}
         <div className="absolute top-6 right-6 z-10 flex gap-2">
           <Link to="/settings">
-            <Button variant="outline" size="icon">
-              <Settings className="h-5 w-5" />
+            <Button variant="outline" size="default">
+              Settings
             </Button>
           </Link>
-          <Button variant="outline" size="icon" onClick={handleLogout}>
-            <LogOut className="h-5 w-5" />
+          <Button variant="outline" size="default" onClick={handleLogout}>
+            Log out
           </Button>
         </div>
 
@@ -57,7 +57,7 @@ const Dashboard = () => {
             <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} />
             <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" />
             <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right bottom" />
-            <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} />
+            <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="center 30%" imageSize="80%" />
           </div>
         </div>
 
@@ -174,6 +174,7 @@ const QuickStat = ({
   icon, 
   backgroundImage, 
   imagePosition = "right center",
+  imageSize = "cover",
   imageStyle,
   opacity = 40 
 }: { 
@@ -182,6 +183,7 @@ const QuickStat = ({
   icon: React.ReactNode; 
   backgroundImage?: string;
   imagePosition?: string;
+  imageSize?: string;
   imageStyle?: React.CSSProperties;
   opacity?: number;
 }) => (
@@ -190,10 +192,12 @@ const QuickStat = ({
     {backgroundImage && (
       <>
         <div 
-          className="absolute inset-0 bg-cover"
+          className="absolute inset-0"
           style={{ 
             backgroundImage: `url(${backgroundImage})`,
             backgroundPosition: imagePosition,
+            backgroundSize: imageSize,
+            backgroundRepeat: 'no-repeat',
             opacity: opacity / 100,
             ...imageStyle
           }}
