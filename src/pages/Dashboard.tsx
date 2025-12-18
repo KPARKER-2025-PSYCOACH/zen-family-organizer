@@ -2,6 +2,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
+import calendarImage from "@/assets/calendar.jpg";
+import emailImage from "@/assets/email.jpg";
+import kitchenImage from "@/assets/kitchen.jpg";
+import giftsImage from "@/assets/gifts.jpg";
 
 const Dashboard = () => {
   return (
@@ -40,7 +44,7 @@ const Dashboard = () => {
             <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} />
             <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} />
             <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} />
-            <QuickStat label="Shopping items" value="12" icon={<Gift className="h-5 w-5" />} />
+            <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} />
           </div>
         </div>
 
@@ -53,6 +57,7 @@ const Dashboard = () => {
             description="All your family events in one place"
             actionLabel="View calendar"
             actionHref="/calendar"
+            backgroundImage={calendarImage}
           >
             <div className="space-y-3 pt-4">
               <EventItem time="09:00" title="School drop-off" category="School" />
@@ -68,6 +73,7 @@ const Dashboard = () => {
             description="Events detected from your emails"
             actionLabel="Review emails"
             actionHref="/emails"
+            backgroundImage={emailImage}
           >
             <div className="space-y-3 pt-4">
               <EmailItem 
@@ -90,6 +96,7 @@ const Dashboard = () => {
             description="This week's meals and shopping list"
             actionLabel="Plan meals"
             actionHref="/meals"
+            backgroundImage={kitchenImage}
           >
             <div className="space-y-3 pt-4">
               <MealItem day="Wed" meal="Spaghetti bolognese" />
@@ -109,6 +116,7 @@ const Dashboard = () => {
             description="Upcoming occasions and suggestions"
             actionLabel="Browse gifts"
             actionHref="/gifts"
+            backgroundImage={giftsImage}
           >
             <div className="space-y-3 pt-4">
               <GiftItem 
@@ -167,6 +175,7 @@ const DashboardCard = ({
   description, 
   actionLabel,
   actionHref,
+  backgroundImage,
   children 
 }: { 
   icon: React.ReactNode;
@@ -174,10 +183,21 @@ const DashboardCard = ({
   description: string;
   actionLabel: string;
   actionHref: string;
+  backgroundImage?: string;
   children: React.ReactNode;
 }) => (
-  <Card className="shadow-soft hover:shadow-glow transition-all">
-    <CardHeader>
+  <Card className="relative overflow-hidden shadow-soft hover:shadow-glow transition-all">
+    {/* Faded background image */}
+    {backgroundImage && (
+      <>
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-10"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-br from-card/80 to-card/95" />
+      </>
+    )}
+    <CardHeader className="relative z-10">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
           <div className="text-primary">{icon}</div>
@@ -193,7 +213,7 @@ const DashboardCard = ({
         </Link>
       </div>
     </CardHeader>
-    <CardContent>{children}</CardContent>
+    <CardContent className="relative z-10">{children}</CardContent>
   </Card>
 );
 
