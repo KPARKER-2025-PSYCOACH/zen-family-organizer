@@ -9,7 +9,7 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Banner */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-[#f5f3f0] to-[#faf9f7] rounded-b-lg py-16 sm:py-20 px-6 sm:px-24">
+      <header className="relative overflow-hidden bg-gradient-to-br from-[#f5f3f0] to-[#faf9f7] rounded-b-lg py-10 sm:py-12 px-6 sm:px-24">
         {/* Radial glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(201,184,168,0.08)_0%,transparent_70%)] rounded-full" />
         
