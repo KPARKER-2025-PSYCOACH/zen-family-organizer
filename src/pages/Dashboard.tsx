@@ -54,10 +54,10 @@ const Dashboard = () => {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} />
-            <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" />
-            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right calc(100% + 20px)" />
-            <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="right center" imageSize="cover" />
+            <QuickStat label="Events today" value="0" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} />
+            <QuickStat label="Pending emails" value="0" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" />
+            <QuickStat label="Meals planned" value="0/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right calc(100% + 20px)" />
+            <QuickStat label="Gift lists and ideas" value="0" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="right center" imageSize="cover" />
           </div>
         </div>
 
@@ -72,10 +72,9 @@ const Dashboard = () => {
             actionHref="/calendar"
             backgroundImage={calendarImage}
           >
-            <div className="space-y-3 pt-4">
-              <EventItem time="09:00" title="School drop-off" category="School" />
-              <EventItem time="15:30" title="Dentist appointment" category="Health" />
-              <EventItem time="18:00" title="Football practice" category="Activity" />
+            <div className="pt-4 text-center py-8">
+              <p className="text-muted-foreground">No events yet</p>
+              <p className="text-sm text-muted-foreground mt-1">Connect a calendar to get started</p>
             </div>
           </DashboardCard>
 
@@ -88,17 +87,9 @@ const Dashboard = () => {
             actionHref="/emails"
             backgroundImage={emailImage}
           >
-            <div className="space-y-3 pt-4">
-              <EmailItem 
-                subject="School trip permission form" 
-                detail="Thursday 18 Oct, 9am - needs approval"
-                confidence="high"
-              />
-              <EmailItem 
-                subject="Birthday party invitation" 
-                detail="Saturday 20 Oct, 3pm"
-                confidence="medium"
-              />
+            <div className="pt-4 text-center py-8">
+              <p className="text-muted-foreground">No emails scanned</p>
+              <p className="text-sm text-muted-foreground mt-1">Connect your inbox to detect events</p>
             </div>
           </DashboardCard>
 
@@ -111,15 +102,10 @@ const Dashboard = () => {
             actionHref="/meals"
             backgroundImage={kitchenImage}
           >
-            <div className="space-y-3 pt-4">
-              <MealItem day="Wed" meal="Spaghetti bolognese" />
-              <MealItem day="Thu" meal="Chicken stir-fry" />
-              <MealItem day="Fri" meal="Fish & chips" />
+            <div className="pt-4 text-center py-8">
+              <p className="text-muted-foreground">No meals planned</p>
+              <p className="text-sm text-muted-foreground mt-1">Start planning your week</p>
             </div>
-            <Button className="w-full mt-4">
-              <ShoppingCart className="mr-2 h-4 w-4" />
-              Shop for all meals
-            </Button>
           </DashboardCard>
 
           {/* Gift suggestions */}
@@ -131,17 +117,9 @@ const Dashboard = () => {
             actionHref="/gifts"
             backgroundImage={giftsImage}
           >
-            <div className="space-y-3 pt-4">
-              <GiftItem 
-                occasion="Emma's birthday party" 
-                date="Saturday 20 Oct"
-                suggestion="Age 7 craft kit"
-              />
-              <GiftItem 
-                occasion="Teacher appreciation" 
-                date="Next month"
-                suggestion="Thank you card bundle"
-              />
+            <div className="pt-4 text-center py-8">
+              <p className="text-muted-foreground">No upcoming occasions</p>
+              <p className="text-sm text-muted-foreground mt-1">Add events to get gift suggestions</p>
             </div>
           </DashboardCard>
         </div>
