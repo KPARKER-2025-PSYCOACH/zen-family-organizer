@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Calendar, Mail, UtensilsCrossed, Gift } from "lucide-react";
 import { Link } from "react-router-dom";
 import logoImage from "@/assets/parent-assist-logo-transparent.png";
+import calendarImage from "@/assets/calendar.jpg";
+import emailImage from "@/assets/email.jpg";
+import kitchenImage from "@/assets/kitchen.jpg";
+import giftsImage from "@/assets/gifts.jpg";
 
 const Index = () => {
   return (
@@ -57,22 +60,22 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
-              icon={<Calendar className="h-8 w-8" />}
+              image={calendarImage}
               title="Smart calendar"
               description="Sync Google, Apple, and Android calendars. Events auto-categorised, colour-coded, and shared."
             />
             <FeatureCard
-              icon={<Mail className="h-8 w-8" />}
+              image={emailImage}
               title="Email parsing"
               description="Scans your inbox for dates and times. One tap approval adds them to your calendar."
             />
             <FeatureCard
-              icon={<UtensilsCrossed className="h-8 w-8" />}
+              image={kitchenImage}
               title="Meal planning"
               description="Save favourite recipes, plan your week, and generate shopping lists instantly."
             />
             <FeatureCard
-              icon={<Gift className="h-8 w-8" />}
+              image={giftsImage}
               title="Gift suggestions"
               description="Timely reminders and thoughtful gift ideas based on upcoming events."
             />
@@ -90,11 +93,20 @@ const Index = () => {
   );
 };
 
-const FeatureCard = ({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) => (
-  <div className="bg-card rounded-2xl p-8 shadow-soft hover:shadow-glow transition-all border space-y-4">
-    <div className="text-primary">{icon}</div>
-    <h3 className="text-xl font-semibold">{title}</h3>
-    <p className="text-muted-foreground">{description}</p>
+const FeatureCard = ({ image, title, description }: { image: string; title: string; description: string }) => (
+  <div className="relative rounded-2xl overflow-hidden shadow-soft hover:shadow-glow transition-all border min-h-[280px]">
+    {/* Background image with fade overlay */}
+    <div 
+      className="absolute inset-0 bg-cover bg-center"
+      style={{ backgroundImage: `url(${image})` }}
+    />
+    <div className="absolute inset-0 bg-gradient-to-t from-card/95 via-card/80 to-card/50" />
+    
+    {/* Content */}
+    <div className="relative z-10 p-8 h-full flex flex-col justify-end space-y-3">
+      <h3 className="text-xl font-semibold text-foreground">{title}</h3>
+      <p className="text-muted-foreground">{description}</p>
+    </div>
   </div>
 );
 
