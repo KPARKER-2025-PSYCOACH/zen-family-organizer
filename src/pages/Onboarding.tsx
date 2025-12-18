@@ -40,9 +40,11 @@ const Onboarding = () => {
   return (
     <div className="min-h-screen gradient-soft flex items-center justify-center p-4">
       <div className="w-full max-w-2xl space-y-8">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-4">
           <h1 className="text-3xl lg:text-4xl font-bold">Welcome to Parent Assist</h1>
-          <p className="text-muted-foreground">Let's get to know your family</p>
+          <p className="text-muted-foreground max-w-xl mx-auto">
+            From scattered calendars to weekly meal plans, Parent Assist brings everything together. One simple space that scans your inbox, plans your week, and remembers the details so you can spend less time juggling and more time with the people you love.
+          </p>
         </div>
 
         {/* Progress indicator */}

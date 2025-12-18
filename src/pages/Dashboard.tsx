@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
@@ -12,6 +12,12 @@ import kitchen2Image from "@/assets/kitchen-2.jpg";
 import gifts2Image from "@/assets/gifts-2.jpg";
 
 const Dashboard = () => {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    navigate("/onboarding");
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* Banner Header */}
@@ -19,13 +25,16 @@ const Dashboard = () => {
         {/* Radial glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(201,184,168,0.08)_0%,transparent_70%)] rounded-full" />
         
-        {/* Settings button */}
-        <div className="absolute top-6 right-6 z-10">
+        {/* Settings and Logout buttons */}
+        <div className="absolute top-6 right-6 z-10 flex gap-2">
           <Link to="/settings">
             <Button variant="outline" size="icon">
               <Settings className="h-5 w-5" />
             </Button>
           </Link>
+          <Button variant="outline" size="icon" onClick={handleLogout}>
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
 
         {/* Logo content */}
