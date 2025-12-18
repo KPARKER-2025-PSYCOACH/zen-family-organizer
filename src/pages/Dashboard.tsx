@@ -56,7 +56,7 @@ const Dashboard = () => {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} />
             <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" />
-            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right bottom" />
+            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right calc(100% + 8px)" />
             <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="right center" imageSize="cover" />
           </div>
         </div>
