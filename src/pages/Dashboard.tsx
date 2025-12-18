@@ -161,14 +161,14 @@ const Dashboard = () => {
 
 const QuickStat = ({ label, value, icon, backgroundImage }: { label: string; value: string; icon: React.ReactNode; backgroundImage?: string }) => (
   <Card className="relative overflow-hidden shadow-soft">
-    {/* Faded background image */}
+    {/* Faded background image - aligned right */}
     {backgroundImage && (
       <>
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-20"
+          className="absolute inset-0 bg-cover bg-right opacity-40"
           style={{ backgroundImage: `url(${backgroundImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/60" />
+        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
       </>
     )}
     <CardContent className="relative z-10 pt-6">
