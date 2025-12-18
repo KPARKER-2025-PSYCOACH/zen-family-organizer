@@ -15,7 +15,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    navigate("/onboarding");
+    navigate("/");
   };
 
   return (
