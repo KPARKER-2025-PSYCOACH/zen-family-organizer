@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import logoImage from "@/assets/parent-assist-logo-transparent.png";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
@@ -13,15 +12,10 @@ const Index = () => {
       <header className="gradient-warm">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center sm:flex-row sm:items-center gap-4 sm:gap-6">
-              <img 
-                src={logoImage} 
-                alt="Parent Assist logo - AI that lightens your mental load" 
-                className="h-20 sm:h-24 w-auto"
-              />
-              <p className="text-xl sm:text-2xl lg:text-3xl font-medium text-foreground text-center sm:text-left">
-                AI that lightens your mental load.
-              </p>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#c9b8a8] to-transparent" />
+              <h1 className="text-4xl sm:text-5xl font-normal text-foreground tracking-wide">Parent Assist</h1>
+              <p className="text-xs text-muted-foreground font-light tracking-[0.15em] uppercase">AI that helps you lighten the mental load</p>
             </div>
             <div className="flex gap-3">
               <Link to="/onboarding">
