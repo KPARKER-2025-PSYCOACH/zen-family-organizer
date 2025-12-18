@@ -6,6 +6,10 @@ import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
 import giftsImage from "@/assets/gifts.jpg";
+import calendar2Image from "@/assets/calendar-2.jpg";
+import email2Image from "@/assets/email-2.jpg";
+import kitchen2Image from "@/assets/kitchen-2.jpg";
+import gifts2Image from "@/assets/gifts-2.jpg";
 
 const Dashboard = () => {
   return (
@@ -41,10 +45,10 @@ const Dashboard = () => {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} />
-            <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} />
-            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} />
-            <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} />
+            <QuickStat label="Events today" value="3" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} />
+            <QuickStat label="Pending emails" value="2" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} />
+            <QuickStat label="Meals planned" value="5/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} />
+            <QuickStat label="Gift lists and ideas" value="12" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} />
           </div>
         </div>
 
@@ -155,9 +159,19 @@ const Dashboard = () => {
   );
 };
 
-const QuickStat = ({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) => (
-  <Card className="shadow-soft">
-    <CardContent className="pt-6">
+const QuickStat = ({ label, value, icon, backgroundImage }: { label: string; value: string; icon: React.ReactNode; backgroundImage?: string }) => (
+  <Card className="relative overflow-hidden shadow-soft">
+    {/* Faded background image */}
+    {backgroundImage && (
+      <>
+        <div 
+          className="absolute inset-0 bg-cover bg-center opacity-20"
+          style={{ backgroundImage: `url(${backgroundImage})` }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-card via-card/80 to-card/60" />
+      </>
+    )}
+    <CardContent className="relative z-10 pt-6">
       <div className="flex items-center gap-3">
         <div className="text-primary">{icon}</div>
         <div>
