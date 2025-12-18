@@ -36,7 +36,7 @@ const Index = () => {
       </header>
 
       {/* Intro Section */}
-      <section className="pt-12 pb-6 lg:pt-16 lg:pb-8">
+      <section className="pt-4 pb-6 lg:pt-6 lg:pb-8">
         <div className="container mx-auto px-4">
           <div className="bg-card rounded-2xl p-8 lg:p-10 shadow-soft border space-y-4">
             <h2 className="text-3xl lg:text-4xl font-bold text-foreground text-center">
