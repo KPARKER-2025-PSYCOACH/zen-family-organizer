@@ -43,9 +43,7 @@ const Index = () => {
               Family life, made lighter
             </h2>
             <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed text-center">
-              From scattered calendars to sorted meals, Parent Assist brings everything together. 
-              One gentle hub that scans your inbox, plans your week, and reminds you what matters—so 
-              you can spend less time juggling and more time with the people you love.
+              From scattered calendars to sorted meals, Parent Assist brings everything together. One gentle hub that scans your inbox, plans your week, and reminds you what matters so you can spend less time juggling and more time with the people you love.
             </p>
           </div>
         </div>
