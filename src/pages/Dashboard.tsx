@@ -2,32 +2,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
-import logoImage from "@/assets/parent-assist-logo.png";
 
 const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <img 
-                src={logoImage} 
-                alt="Parent Assist logo" 
-                className="h-20 w-auto"
-              />
-              <div>
-                <h1 className="text-2xl font-bold">Parent Assist</h1>
-                <p className="text-sm text-muted-foreground">The Smith Family</p>
-              </div>
-            </div>
-            <Link to="/settings">
-              <Button variant="outline" size="icon">
-                <Settings className="h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
+      {/* Banner Header */}
+      <header className="relative overflow-hidden bg-gradient-to-br from-[#f5f3f0] to-[#faf9f7] py-8 px-6">
+        {/* Radial glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(201,184,168,0.08)_0%,transparent_70%)] rounded-full" />
+        
+        {/* Settings button */}
+        <div className="absolute top-6 right-6 z-10">
+          <Link to="/settings">
+            <Button variant="outline" size="icon">
+              <Settings className="h-5 w-5" />
+            </Button>
+          </Link>
+        </div>
+
+        {/* Logo content */}
+        <div className="relative z-[2] flex flex-col items-center text-center">
+          <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-[#c9b8a8] to-transparent mb-5" />
+          <h1 className="text-4xl sm:text-5xl font-normal text-[#2d2d2d] tracking-wide mb-2">Parent Assist</h1>
+          <p className="text-sm text-[#8a8a8a] font-light tracking-wide">The Smith Family</p>
         </div>
       </header>
 
