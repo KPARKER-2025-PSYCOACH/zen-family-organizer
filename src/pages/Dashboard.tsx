@@ -191,10 +191,10 @@ const DashboardCard = ({
     {backgroundImage && (
       <>
         <div 
-          className="absolute inset-0 bg-cover bg-center opacity-10"
+          className="absolute inset-0 bg-cover bg-center opacity-25"
           style={{ backgroundImage: `url(${backgroundImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-card/80 to-card/95" />
+        <div className="absolute inset-0 bg-gradient-to-br from-card/70 to-card/90" />
       </>
     )}
     <CardHeader className="relative z-10">
