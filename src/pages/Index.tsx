@@ -66,6 +66,7 @@ const Index = () => {
             />
             <FeatureCard
               image={emailImage}
+              imagePosition="bottom"
               title="Email parsing"
               description="Scans your inbox for dates and times. One tap approval adds them to your calendar."
             />
@@ -93,11 +94,11 @@ const Index = () => {
   );
 };
 
-const FeatureCard = ({ image, title, description }: { image: string; title: string; description: string }) => (
+const FeatureCard = ({ image, imagePosition = "center", title, description }: { image: string; imagePosition?: "center" | "top" | "bottom"; title: string; description: string }) => (
   <div className="relative rounded-2xl overflow-hidden shadow-soft hover:shadow-glow transition-all border min-h-[280px]">
     {/* Background image with fade overlay */}
     <div 
-      className="absolute inset-0 bg-cover bg-center"
+      className={`absolute inset-0 bg-cover ${imagePosition === "bottom" ? "bg-bottom" : imagePosition === "top" ? "bg-top" : "bg-center"}`}
       style={{ backgroundImage: `url(${image})` }}
     />
     <div className="absolute inset-0 bg-gradient-to-t from-card/95 via-card/80 to-card/50" />
