@@ -54,74 +54,82 @@ const Dashboard = () => {
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickStat label="Events today" value="0" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} />
-            <QuickStat label="Pending emails" value="0" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" />
-            <QuickStat label="Meals planned" value="0/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right calc(100% + 20px)" />
-            <QuickStat label="Gift lists and ideas" value="0" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="right center" imageSize="cover" />
+            <QuickStat label="Events today" value="0" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} scrollTo="calendar-section" />
+            <QuickStat label="Pending emails" value="0" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" scrollTo="email-section" />
+            <QuickStat label="Meals planned" value="0/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right calc(100% + 20px)" scrollTo="meals-section" />
+            <QuickStat label="Gift lists and ideas" value="0" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="right center" imageSize="cover" scrollTo="gifts-section" />
           </div>
         </div>
 
         {/* Main sections */}
         <div className="grid lg:grid-cols-2 gap-6">
           {/* Calendar */}
-          <DashboardCard
-            icon={<Calendar className="h-6 w-6" />}
-            title="Smart calendar"
-            description="All your family events in one place"
-            actionLabel="View calendar"
-            actionHref="/calendar"
-            backgroundImage={calendarImage}
-          >
-            <div className="pt-4 text-center py-8">
-              <p className="text-muted-foreground">No events yet</p>
-              <p className="text-sm text-muted-foreground mt-1">Connect a calendar to get started</p>
-            </div>
-          </DashboardCard>
+          <div id="calendar-section">
+            <DashboardCard
+              icon={<Calendar className="h-6 w-6" />}
+              title="Smart calendar"
+              description="All your family events in one place"
+              actionLabel="View calendar"
+              actionHref="/calendar"
+              backgroundImage={calendarImage}
+            >
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No events yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Connect a calendar to get started</p>
+              </div>
+            </DashboardCard>
+          </div>
 
           {/* Email parsing */}
-          <DashboardCard
-            icon={<Mail className="h-6 w-6" />}
-            title="Email inbox"
-            description="Events detected from your emails"
-            actionLabel="Review emails"
-            actionHref="/emails"
-            backgroundImage={emailImage}
-          >
-            <div className="pt-4 text-center py-8">
-              <p className="text-muted-foreground">No emails scanned</p>
-              <p className="text-sm text-muted-foreground mt-1">Connect your inbox to detect events</p>
-            </div>
-          </DashboardCard>
+          <div id="email-section">
+            <DashboardCard
+              icon={<Mail className="h-6 w-6" />}
+              title="Email inbox"
+              description="Events detected from your emails"
+              actionLabel="Review emails"
+              actionHref="/emails"
+              backgroundImage={emailImage}
+            >
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No emails scanned</p>
+                <p className="text-sm text-muted-foreground mt-1">Connect your inbox to detect events</p>
+              </div>
+            </DashboardCard>
+          </div>
 
           {/* Meal planning */}
-          <DashboardCard
-            icon={<UtensilsCrossed className="h-6 w-6" />}
-            title="Meal planner"
-            description="This week's meals and shopping list"
-            actionLabel="Plan meals"
-            actionHref="/meals"
-            backgroundImage={kitchenImage}
-          >
-            <div className="pt-4 text-center py-8">
-              <p className="text-muted-foreground">No meals planned</p>
-              <p className="text-sm text-muted-foreground mt-1">Start planning your week</p>
-            </div>
-          </DashboardCard>
+          <div id="meals-section">
+            <DashboardCard
+              icon={<UtensilsCrossed className="h-6 w-6" />}
+              title="Meal planner"
+              description="This week's meals and shopping list"
+              actionLabel="Plan meals"
+              actionHref="/meals"
+              backgroundImage={kitchenImage}
+            >
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No meals planned</p>
+                <p className="text-sm text-muted-foreground mt-1">Start planning your week</p>
+              </div>
+            </DashboardCard>
+          </div>
 
           {/* Gift suggestions */}
-          <DashboardCard
-            icon={<Gift className="h-6 w-6" />}
-            title="Gift ideas"
-            description="Upcoming occasions and suggestions"
-            actionLabel="Browse gifts"
-            actionHref="/gifts"
-            backgroundImage={giftsImage}
-          >
-            <div className="pt-4 text-center py-8">
-              <p className="text-muted-foreground">No upcoming occasions</p>
-              <p className="text-sm text-muted-foreground mt-1">Add events to get gift suggestions</p>
-            </div>
-          </DashboardCard>
+          <div id="gifts-section">
+            <DashboardCard
+              icon={<Gift className="h-6 w-6" />}
+              title="Gift ideas"
+              description="Upcoming occasions and suggestions"
+              actionLabel="Browse gifts"
+              actionHref="/gifts"
+              backgroundImage={giftsImage}
+            >
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No upcoming occasions</p>
+                <p className="text-sm text-muted-foreground mt-1">Add events to get gift suggestions</p>
+              </div>
+            </DashboardCard>
+          </div>
         </div>
 
         {/* Quick actions */}
@@ -154,7 +162,8 @@ const QuickStat = ({
   imagePosition = "right center",
   imageSize = "cover",
   imageStyle,
-  opacity = 40 
+  opacity = 40,
+  scrollTo
 }: { 
   label: string; 
   value: string; 
@@ -164,36 +173,51 @@ const QuickStat = ({
   imageSize?: string;
   imageStyle?: React.CSSProperties;
   opacity?: number;
-}) => (
-  <Card className="relative overflow-hidden shadow-soft">
-    {/* Faded background image */}
-    {backgroundImage && (
-      <>
-        <div 
-          className="absolute inset-0"
-          style={{ 
-            backgroundImage: `url(${backgroundImage})`,
-            backgroundPosition: imagePosition,
-            backgroundSize: imageSize,
-            backgroundRepeat: 'no-repeat',
-            opacity: opacity / 100,
-            ...imageStyle
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
-      </>
-    )}
-    <CardContent className="relative z-10 pt-6">
-      <div className="flex items-center gap-3">
-        <div className="text-primary">{icon}</div>
-        <div>
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-sm text-muted-foreground">{label}</p>
+  scrollTo?: string;
+}) => {
+  const handleClick = () => {
+    if (scrollTo) {
+      const element = document.getElementById(scrollTo);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
+
+  return (
+    <Card 
+      className={`relative overflow-hidden shadow-soft ${scrollTo ? 'cursor-pointer hover:shadow-glow transition-shadow' : ''}`}
+      onClick={handleClick}
+    >
+      {/* Faded background image */}
+      {backgroundImage && (
+        <>
+          <div 
+            className="absolute inset-0"
+            style={{ 
+              backgroundImage: `url(${backgroundImage})`,
+              backgroundPosition: imagePosition,
+              backgroundSize: imageSize,
+              backgroundRepeat: 'no-repeat',
+              opacity: opacity / 100,
+              ...imageStyle
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
+        </>
+      )}
+      <CardContent className="relative z-10 pt-6">
+        <div className="flex items-center gap-3">
+          <div className="text-primary">{icon}</div>
+          <div>
+            <p className="text-2xl font-bold">{value}</p>
+            <p className="text-sm text-muted-foreground">{label}</p>
+          </div>
         </div>
-      </div>
-    </CardContent>
-  </Card>
-);
+      </CardContent>
+    </Card>
+  );
+};
 
 const DashboardCard = ({ 
   icon, 
