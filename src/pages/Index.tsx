@@ -95,7 +95,7 @@ const FeatureCard = ({ image, imagePosition = "center", title, description }: { 
       className={`absolute inset-0 bg-cover ${imagePosition === "bottom" ? "bg-bottom" : imagePosition === "top" ? "bg-top" : "bg-center"}`}
       style={{ backgroundImage: `url(${image})` }}
     />
-    <div className="absolute inset-0 bg-gradient-to-t from-card/95 via-card/80 to-card/50" />
+    <div className="absolute inset-0 bg-gradient-to-t from-card/85 via-card/70 to-card/40" />
     
     {/* Content */}
     <div className="relative z-10 p-8 h-full flex flex-col justify-end space-y-3">
