@@ -15,12 +15,12 @@ const Index = () => {
         
         {/* Navigation buttons - positioned at top on desktop, part of flow on mobile */}
         <div className="relative z-10 flex justify-end gap-2 sm:gap-3 mb-6 sm:mb-0 sm:absolute sm:top-6 sm:right-6">
-          <Link to="/onboarding">
+          <Link to="/auth">
             <Button variant="outline" size="sm" className="sm:size-default">
               Log in
             </Button>
           </Link>
-          <Link to="/onboarding">
+          <Link to="/auth">
             <Button size="sm" className="sm:size-default">
               Register
             </Button>
