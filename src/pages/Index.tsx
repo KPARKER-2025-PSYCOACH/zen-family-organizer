@@ -9,19 +9,19 @@ const Index = () => {
   return (
     <div className="min-h-screen">
       {/* Banner */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-[#f5f3f0] to-[#faf9f7] rounded-b-lg py-10 sm:py-12 px-6 sm:px-24">
+      <header className="relative overflow-hidden bg-gradient-to-br from-[#f5f3f0] to-[#faf9f7] rounded-b-lg py-6 sm:py-12 px-4 sm:px-24">
         {/* Radial glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(201,184,168,0.08)_0%,transparent_70%)] rounded-full" />
         
-        {/* Navigation buttons */}
-        <div className="absolute top-6 right-6 flex gap-3 z-10">
+        {/* Navigation buttons - positioned at top on desktop, part of flow on mobile */}
+        <div className="relative z-10 flex justify-end gap-2 sm:gap-3 mb-6 sm:mb-0 sm:absolute sm:top-6 sm:right-6">
           <Link to="/onboarding">
-            <Button variant="outline" size="default">
+            <Button variant="outline" size="sm" className="sm:size-default">
               Log in
             </Button>
           </Link>
           <Link to="/onboarding">
-            <Button size="default">
+            <Button size="sm" className="sm:size-default">
               Register
             </Button>
           </Link>
@@ -30,8 +30,8 @@ const Index = () => {
         {/* Logo content */}
         <div className="relative z-[2] flex flex-col items-center text-center">
           <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-[#c9b8a8] to-transparent mb-5" />
-          <h1 className="text-5xl sm:text-[52px] font-normal text-[#2d2d2d] tracking-wide mb-3">Parent Assist</h1>
-          <p className="text-[13px] text-[#8a8a8a] font-light tracking-[0.15em] uppercase">AI that helps you lighten the mental load</p>
+          <h1 className="text-4xl sm:text-[52px] font-normal text-[#2d2d2d] tracking-wide mb-3">Parent Assist</h1>
+          <p className="text-[11px] sm:text-[13px] text-[#8a8a8a] font-light tracking-[0.15em] uppercase">AI that helps you lighten the mental load</p>
         </div>
       </header>
 
