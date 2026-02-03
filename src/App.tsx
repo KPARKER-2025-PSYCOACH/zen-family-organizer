@@ -9,6 +9,10 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Settings from "./pages/Settings";
 import Privacy from "./pages/Privacy";
+import CalendarPage from "./pages/Calendar";
+import EmailsPage from "./pages/Emails";
+import GiftsPage from "./pages/Gifts";
+import MealsPage from "./pages/Meals";
 import NotFound from "./pages/NotFound";
 import CookieConsent from "./components/CookieConsent";
 
@@ -27,6 +31,10 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/emails" element={<EmailsPage />} />
+          <Route path="/gifts" element={<GiftsPage />} />
+          <Route path="/meals" element={<MealsPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
