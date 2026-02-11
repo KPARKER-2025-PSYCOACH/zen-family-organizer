@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import todoImage from "@/assets/todo.jpg";
 import calendarImage from "@/assets/calendar.jpg";
-import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
 import giftsImage from "@/assets/gifts.jpg";
 
@@ -40,15 +40,14 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
-              image={calendarImage}
-              title="Smart calendar"
-              description="Sync Google, Apple, and Android calendars. Events auto-categorised, colour-coded, and shared."
+              image={todoImage}
+              title="To do list"
+              description="Keep track of tasks, errands, and reminders all in one place."
             />
             <FeatureCard
-              image={emailImage}
-              imagePosition="bottom"
-              title="Email parsing"
-              description="Scans your inbox for dates and times. One tap approval adds them to your calendar."
+              image={calendarImage}
+              title="Calendar & email"
+              description="Sync your calendars and scan your inbox for dates, times, and events — all in one view."
             />
             <FeatureCard
               image={kitchenImage}
