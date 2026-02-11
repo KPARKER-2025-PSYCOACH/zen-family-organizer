@@ -40,14 +40,14 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
-              image={todoImage}
-              title="To do list"
-              description="Keep track of tasks, errands, and reminders all in one place."
-            />
-            <FeatureCard
               image={calendarImage}
               title="Calendar & email"
               description="Sync your calendars and scan your inbox for dates, times, and events — all in one view."
+            />
+            <FeatureCard
+              image={todoImage}
+              title="To do list"
+              description="Keep track of tasks, errands, and reminders all in one place."
             />
             <FeatureCard
               image={kitchenImage}
