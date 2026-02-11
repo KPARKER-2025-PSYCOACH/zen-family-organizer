@@ -43,6 +43,8 @@ const Index = () => {
               image={calendarImage}
               title="Calendar & email"
               description="Sync your calendars and scan your inbox for dates, times, and events — all in one view."
+              cta="Connect your first calendar"
+              ctaLink="/calendar"
             />
             <FeatureCard
               image={todoImage}
@@ -73,7 +75,7 @@ const Index = () => {
   );
 };
 
-const FeatureCard = ({ image, imagePosition = "center", title, description }: { image: string; imagePosition?: "center" | "top" | "bottom"; title: string; description: string }) => (
+const FeatureCard = ({ image, imagePosition = "center", title, description, cta, ctaLink }: { image: string; imagePosition?: "center" | "top" | "bottom"; title: string; description: string; cta?: string; ctaLink?: string }) => (
   <div className="relative rounded-2xl overflow-hidden shadow-soft hover:shadow-glow transition-all border min-h-[280px]">
     {/* Background image with fade overlay */}
     <div 
@@ -86,6 +88,13 @@ const FeatureCard = ({ image, imagePosition = "center", title, description }: { 
     <div className="relative z-10 p-8 h-full flex flex-col justify-end space-y-3">
       <h3 className="text-xl font-semibold text-foreground">{title}</h3>
       <p className="text-muted-foreground">{description}</p>
+      {cta && ctaLink && (
+        <Link to={ctaLink} className="inline-flex">
+          <Button size="sm" variant="outline" className="mt-1">
+            {cta}
+          </Button>
+        </Link>
+      )}
     </div>
   </div>
 );
