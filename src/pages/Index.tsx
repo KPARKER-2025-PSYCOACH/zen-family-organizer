@@ -29,8 +29,8 @@ const Index = () => {
 
         {/* Logo content */}
         <div className="relative z-[2] flex flex-col items-center text-center">
-          <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-[#c9b8a8] to-transparent mb-5" />
           <h1 className="text-4xl sm:text-[52px] font-normal text-[#2d2d2d] tracking-wide mb-3">Parent Assist</h1>
+          <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-[#c9b8a8] to-transparent mb-5" />
           <p className="text-[11px] sm:text-[13px] text-[#8a8a8a] font-light tracking-[0.15em] uppercase">AI that helps you lighten the mental load</p>
         </div>
       </header>
