@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -68,6 +70,24 @@ const MealsPage = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<RecipeDifficulty | 'any'>('any');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
+  const [savedDietaryReqs, setSavedDietaryReqs] = useState<DietaryRequirement[]>(() => {
+    try {
+      const stored = localStorage.getItem('parentassist_dietary_reqs');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [searchOffset, setSearchOffset] = useState(0);
+
+  useEffect(() => {
+    localStorage.setItem('parentassist_dietary_reqs', JSON.stringify(savedDietaryReqs));
+  }, [savedDietaryReqs]);
+
+  const toggleSavedDietaryReq = (req: DietaryRequirement) => {
+    setSavedDietaryReqs(prev =>
+      prev.includes(req) ? prev.filter(r => r !== req) : [...prev, req]
+    );
+  };
 
   // New family member form
   const [newMember, setNewMember] = useState<Partial<FamilyMember>>({
@@ -104,64 +124,55 @@ const MealsPage = () => {
     }
   };
 
-  const handleSearchRecipes = async () => {
-    setIsSearching(true);
-    // TODO: Implement AI-powered recipe search
-    
-    setTimeout(() => {
+  const fetchRecipes = async (offset: number, append: boolean) => {
+    if (append) setIsLoadingMore(true); else setIsSearching(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('meal-search', {
+        body: {
+          cuisine: selectedCuisine,
+          difficulty: selectedDifficulty,
+          query: searchQuery,
+          dietaryRequirements: savedDietaryReqs.map(r =>
+            DIETARY_REQUIREMENTS.find(d => d.value === r)?.label || r
+          ),
+          offset,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+
+      const newRecipes: Recipe[] = (data?.recipes || []).map((r: any, i: number) => ({
+        ...r,
+        id: r.id || `ai-${Date.now()}-${i}`,
+      }));
+
+      if (append) {
+        setSearchResults(prev => [...prev, ...newRecipes]);
+      } else {
+        setSearchResults(newRecipes);
+      }
+      setSearchOffset(offset + 10);
+    } catch (e: any) {
+      console.error('Meal search error:', e);
+      toast.error('Failed to search for recipes. Please try again.');
+    } finally {
       setIsSearching(false);
-      // Mock results
-      setSearchResults([
-        {
-          id: '1',
-          title: 'Creamy Tuscan Chicken',
-          description: 'Rich and creamy chicken with sun-dried tomatoes and spinach',
-          cuisine: 'italian',
-          difficulty: 'medium',
-          prepTime: 15,
-          cookTime: 25,
-          servings: 4,
-          ingredients: [
-            { item: 'Chicken breasts', amount: '4', unit: 'pieces' },
-            { item: 'Sun-dried tomatoes', amount: '100', unit: 'g' },
-            { item: 'Spinach', amount: '200', unit: 'g' },
-            { item: 'Double cream', amount: '200', unit: 'ml' },
-            { item: 'Parmesan', amount: '50', unit: 'g' },
-          ],
-          instructions: [
-            'Season chicken breasts with salt and pepper',
-            'Cook chicken in a hot pan for 6-7 minutes each side',
-            'Remove chicken and add sun-dried tomatoes',
-            'Add cream and simmer for 2 minutes',
-            'Add spinach and parmesan, stir until wilted',
-            'Return chicken to pan and serve',
-          ],
-        },
-        {
-          id: '2',
-          title: 'Quick Veggie Stir Fry',
-          description: 'Healthy and fast vegetable stir fry with tofu',
-          cuisine: 'chinese',
-          difficulty: 'easy',
-          prepTime: 10,
-          cookTime: 10,
-          servings: 4,
-          ingredients: [
-            { item: 'Tofu', amount: '400', unit: 'g' },
-            { item: 'Mixed vegetables', amount: '500', unit: 'g' },
-            { item: 'Soy sauce', amount: '3', unit: 'tbsp' },
-            { item: 'Sesame oil', amount: '1', unit: 'tbsp' },
-          ],
-          instructions: [
-            'Press and cube tofu',
-            'Fry tofu until golden',
-            'Add vegetables and stir fry for 5 minutes',
-            'Add soy sauce and sesame oil',
-            'Serve with rice',
-          ],
-        },
-      ]);
-    }, 1500);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleSearchRecipes = () => {
+    setSearchOffset(0);
+    fetchRecipes(0, false);
+  };
+
+  const handleLoadMore = () => {
+    fetchRecipes(searchOffset, true);
   };
 
   const handleAddToDay = (recipe: Recipe, day: string) => {
@@ -408,6 +419,24 @@ const MealsPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Persistent Dietary Requirements */}
+                <div className="space-y-2">
+                  <Label>Dietary Requirements <span className="text-xs text-muted-foreground">(saved across searches)</span></Label>
+                  <div className="flex flex-wrap gap-2">
+                    {DIETARY_REQUIREMENTS.map(req => (
+                      <Badge
+                        key={req.value}
+                        variant={savedDietaryReqs.includes(req.value) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleSavedDietaryReq(req.value)}
+                      >
+                        {req.label}
+                        {savedDietaryReqs.includes(req.value) && " ✕"}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="grid md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Cuisine Type</Label>
@@ -532,6 +561,24 @@ const MealsPage = () => {
                       </CardContent>
                     </Card>
                   ))}
+                </div>
+
+                <div className="flex justify-center pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                    className="gap-2"
+                  >
+                    {isLoadingMore ? (
+                      <>Loading...</>
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4" />
+                        Find more recipes
+                      </>
+                    )}
+                  </Button>
                 </div>
               </div>
             )}
