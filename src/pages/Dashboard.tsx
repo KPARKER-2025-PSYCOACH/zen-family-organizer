@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut, PoundSterling } from "lucide-react";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut, PoundSterling, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
@@ -11,6 +11,7 @@ import email2Image from "@/assets/email-2.jpg";
 import kitchen2Image from "@/assets/kitchen-2.jpg";
 import gifts2Image from "@/assets/gifts-2.jpg";
 import spendingImage from "@/assets/spending.jpg";
+import tasksImage from "@/assets/tasks.jpg";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -145,6 +146,23 @@ const Dashboard = () => {
               <div className="pt-4 text-center py-8">
                 <p className="text-muted-foreground">No budget created yet</p>
                 <p className="text-sm text-muted-foreground mt-1">Create a spending spreadsheet to get started</p>
+              </div>
+            </DashboardCard>
+          </div>
+
+          {/* Balance Family Tasks */}
+          <div id="tasks-section">
+            <DashboardCard
+              icon={<Users className="h-6 w-6" />}
+              title="Balance family tasks"
+              description="Assign and share household responsibilities"
+              actionLabel="Manage tasks"
+              actionHref="/tasks"
+              backgroundImage={tasksImage}
+            >
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No tasks assigned yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Add family members and drag tasks to get started</p>
               </div>
             </DashboardCard>
           </div>
