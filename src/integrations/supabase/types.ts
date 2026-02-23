@@ -214,6 +214,39 @@ export type Database = {
         }
         Relationships: []
       }
+      sheets_connections: {
+        Row: {
+          created_at: string
+          id: string
+          spreadsheet_id: string
+          spreadsheet_url: string
+          title: string
+          updated_at: string
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          spreadsheet_id: string
+          spreadsheet_url: string
+          title?: string
+          updated_at?: string
+          user_id: string
+          year?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          spreadsheet_id?: string
+          spreadsheet_url?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

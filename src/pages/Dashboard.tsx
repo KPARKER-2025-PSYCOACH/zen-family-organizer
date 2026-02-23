@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut } from "lucide-react";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut, PoundSterling } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
@@ -10,6 +10,7 @@ import calendar2Image from "@/assets/calendar-2.jpg";
 import email2Image from "@/assets/email-2.jpg";
 import kitchen2Image from "@/assets/kitchen-2.jpg";
 import gifts2Image from "@/assets/gifts-2.jpg";
+import spendingImage from "@/assets/spending.jpg";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -127,6 +128,23 @@ const Dashboard = () => {
               <div className="pt-4 text-center py-8">
                 <p className="text-muted-foreground">No upcoming occasions</p>
                 <p className="text-sm text-muted-foreground mt-1">Add events to get gift suggestions</p>
+              </div>
+            </DashboardCard>
+          </div>
+
+          {/* Family Spending */}
+          <div id="spending-section">
+            <DashboardCard
+              icon={<PoundSterling className="h-6 w-6" />}
+              title="Family spending"
+              description="Track your household budget with Google Sheets"
+              actionLabel="Manage budget"
+              actionHref="/spending"
+              backgroundImage={spendingImage}
+            >
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No budget created yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Create a spending spreadsheet to get started</p>
               </div>
             </DashboardCard>
           </div>
