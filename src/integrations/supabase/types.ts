@@ -14,7 +14,206 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calendar_connections: {
+        Row: {
+          access_token: string | null
+          connected: boolean
+          created_at: string
+          email: string | null
+          id: string
+          last_synced: string | null
+          provider: string
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connected?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_synced?: string | null
+          provider: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connected?: boolean
+          created_at?: string
+          email?: string | null
+          id?: string
+          last_synced?: string | null
+          provider?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      calendar_events: {
+        Row: {
+          all_day: boolean
+          calendar_connection_id: string | null
+          category: string
+          created_at: string
+          description: string | null
+          end_time: string
+          google_event_id: string | null
+          id: string
+          source: string
+          source_id: string | null
+          start_time: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          all_day?: boolean
+          calendar_connection_id?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          end_time: string
+          google_event_id?: string | null
+          id?: string
+          source?: string
+          source_id?: string | null
+          start_time: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          all_day?: boolean
+          calendar_connection_id?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          end_time?: string
+          google_event_id?: string | null
+          id?: string
+          source?: string
+          source_id?: string | null
+          start_time?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_calendar_connection_id_fkey"
+            columns: ["calendar_connection_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      detected_events: {
+        Row: {
+          category: string
+          confidence: string
+          created_at: string
+          description: string | null
+          detected_date: string
+          detected_end_date: string | null
+          gift_reason: string | null
+          id: string
+          source_from: string | null
+          source_subject: string | null
+          source_type: string
+          status: string
+          suggest_gift: boolean
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          confidence?: string
+          created_at?: string
+          description?: string | null
+          detected_date: string
+          detected_end_date?: string | null
+          gift_reason?: string | null
+          id?: string
+          source_from?: string | null
+          source_subject?: string | null
+          source_type: string
+          status?: string
+          suggest_gift?: boolean
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          confidence?: string
+          created_at?: string
+          description?: string | null
+          detected_date?: string
+          detected_end_date?: string | null
+          gift_reason?: string | null
+          id?: string
+          source_from?: string | null
+          source_subject?: string | null
+          source_type?: string
+          status?: string
+          suggest_gift?: boolean
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      email_connections: {
+        Row: {
+          access_token: string | null
+          connected: boolean
+          created_at: string
+          email: string | null
+          folders_to_scan: string[]
+          id: string
+          last_scanned: string | null
+          provider: string
+          refresh_token: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          connected?: boolean
+          created_at?: string
+          email?: string | null
+          folders_to_scan?: string[]
+          id?: string
+          last_scanned?: string | null
+          provider: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          connected?: boolean
+          created_at?: string
+          email?: string | null
+          folders_to_scan?: string[]
+          id?: string
+          last_scanned?: string | null
+          provider?: string
+          refresh_token?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
