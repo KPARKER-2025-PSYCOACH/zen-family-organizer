@@ -50,6 +50,8 @@ const Index = () => {
               image={todoImage}
               title="To do list"
               description="Keep track of tasks, errands, and reminders all in one place."
+              cta="Create your first list"
+              ctaLink="/todos"
             />
             <FeatureCard
               image={kitchenImage}

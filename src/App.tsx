@@ -13,6 +13,7 @@ import CalendarPage from "./pages/Calendar";
 import EmailsPage from "./pages/Emails";
 import GiftsPage from "./pages/Gifts";
 import MealsPage from "./pages/Meals";
+import TodosPage from "./pages/Todos";
 import NotFound from "./pages/NotFound";
 import CookieConsent from "./components/CookieConsent";
 
@@ -35,6 +36,7 @@ const App = () => (
           <Route path="/emails" element={<EmailsPage />} />
           <Route path="/gifts" element={<GiftsPage />} />
           <Route path="/meals" element={<MealsPage />} />
+          <Route path="/todos" element={<TodosPage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
