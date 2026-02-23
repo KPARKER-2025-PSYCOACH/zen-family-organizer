@@ -4,6 +4,8 @@ import todoImage from "@/assets/todo.jpg";
 import calendarImage from "@/assets/calendar.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
 import giftsImage from "@/assets/gifts.jpg";
+import spendingImage from "@/assets/spending.jpg";
+import tasksImage from "@/assets/tasks.jpg";
 
 const Index = () => {
   return (
@@ -38,7 +40,7 @@ const Index = () => {
       {/* Features Grid */}
       <section className="pt-6 pb-12 lg:pt-8 lg:pb-16 gradient-soft">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             <FeatureCard
               image={calendarImage}
               title="Calendar & email"
@@ -62,6 +64,20 @@ const Index = () => {
               image={giftsImage}
               title="Gift suggestions"
               description="Timely reminders and thoughtful gift ideas based on upcoming events."
+            />
+            <FeatureCard
+              image={spendingImage}
+              title="Family spending"
+              description="Track your household budget with a ready-made Google Sheets template — monthly tabs, category totals, and year-end summaries."
+              cta="Set up your budget"
+              ctaLink="/spending"
+            />
+            <FeatureCard
+              image={tasksImage}
+              title="Balance family tasks"
+              description="Drag-and-drop chores and responsibilities between family members so nothing falls on one person."
+              cta="Assign tasks"
+              ctaLink="/tasks"
             />
           </div>
         </div>
