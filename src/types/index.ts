@@ -87,7 +87,8 @@ export type DietaryRequirement =
   | 'vegetarian' | 'vegan' | 'pescatarian' 
   | 'gluten_free' | 'dairy_free' | 'nut_free' | 'egg_free' | 'soy_free'
   | 'low_carb' | 'keto' | 'paleo' | 'halal' | 'kosher'
-  | 'low_sodium' | 'diabetic_friendly';
+  | 'low_sodium' | 'diabetic_friendly'
+  | (string & {});
 
 export type CuisineType = 
   | 'italian' | 'chinese' | 'indian' | 'mexican' | 'japanese' 

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.google-sheets-spending]
 verify_jwt = false
+
+[functions.scan-recipe]
+verify_jwt = false

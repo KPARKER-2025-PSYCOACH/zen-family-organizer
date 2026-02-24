@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, GripVertical, Trash2, Eye } from "lucide-react";
+import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, GripVertical, Trash2, Eye, Upload, RefreshCw, Pencil, X } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
+import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
 import type { FamilyMember, Recipe, MealPlan, GroceryItem, DietaryRequirement, CuisineType, RecipeDifficulty } from "@/types";
 
 const DIETARY_REQUIREMENTS: { value: DietaryRequirement; label: string }[] = [
@@ -77,12 +78,31 @@ const MealsPage = () => {
       return stored ? JSON.parse(stored) : [];
     } catch { return []; }
   });
+  const [customDietaryReqs, setCustomDietaryReqs] = useState<{ value: string; label: string }[]>(() => {
+    try {
+      const stored = localStorage.getItem('parentassist_custom_dietary');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+  const [newCustomReq, setNewCustomReq] = useState('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchOffset, setSearchOffset] = useState(0);
+  // Recipe editor state
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorRecipe, setEditorRecipe] = useState<Partial<Recipe> | null>(null);
+  const [editorTitle, setEditorTitle] = useState('Add Recipe');
+  const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
+  // Recipe scan state
+  const recipeFileInputRef = useRef<HTMLInputElement>(null);
+  const [scanningRecipe, setScanningRecipe] = useState(false);
 
   useEffect(() => {
     localStorage.setItem('parentassist_dietary_reqs', JSON.stringify(savedDietaryReqs));
   }, [savedDietaryReqs]);
+
+  useEffect(() => {
+    localStorage.setItem('parentassist_custom_dietary', JSON.stringify(customDietaryReqs));
+  }, [customDietaryReqs]);
 
   const toggleSavedDietaryReq = (req: DietaryRequirement) => {
     setSavedDietaryReqs(prev =>
@@ -218,6 +238,104 @@ const MealsPage = () => {
         item.id === id ? { ...item, checked: !item.checked } : item
       )
     );
+  };
+
+  const handleAddCustomReq = () => {
+    const trimmed = newCustomReq.trim();
+    if (!trimmed) return;
+    const value = trimmed.toLowerCase().replace(/\s+/g, '_');
+    if (customDietaryReqs.some(r => r.value === value)) return;
+    setCustomDietaryReqs(prev => [...prev, { value, label: trimmed }]);
+    setSavedDietaryReqs(prev => [...prev, value as DietaryRequirement]);
+    setNewCustomReq('');
+  };
+
+  const handleRemoveCustomReq = (value: string) => {
+    setCustomDietaryReqs(prev => prev.filter(r => r.value !== value));
+    setSavedDietaryReqs(prev => prev.filter(r => r !== value));
+  };
+
+  const handleScanRecipeFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setScanningRecipe(true);
+    try {
+      let fileContent = "";
+      if (file.type === "application/pdf") {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        const textDecoder = new TextDecoder("utf-8", { fatal: false });
+        fileContent = textDecoder.decode(bytes);
+        fileContent = fileContent.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, " ").trim();
+      } else {
+        fileContent = await file.text();
+      }
+      if (fileContent.length > 10000) fileContent = fileContent.substring(0, 10000);
+      if (fileContent.length < 10) {
+        toast.error("Could not read file content");
+        return;
+      }
+
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const res = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/scan-recipe`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileContent, fileName: file.name }),
+        }
+      );
+      const data = await res.json();
+      if (data.success && data.recipe) {
+        setEditorRecipe({ ...data.recipe, id: `scan-${Date.now()}` });
+        setEditorTitle('Review Scanned Recipe');
+        setEditingRecipeId(null);
+        setEditorOpen(true);
+        toast.success('Recipe parsed! Review and save below.');
+      } else {
+        toast.error(data.error || 'Failed to parse recipe');
+      }
+    } catch (err) {
+      console.error('Recipe scan error:', err);
+      toast.error('Failed to scan recipe');
+    } finally {
+      setScanningRecipe(false);
+      if (recipeFileInputRef.current) recipeFileInputRef.current.value = "";
+    }
+  };
+
+  const handleOpenManualEntry = () => {
+    setEditorRecipe(null);
+    setEditorTitle('Add Recipe Manually');
+    setEditingRecipeId(null);
+    setEditorOpen(true);
+  };
+
+  const handleEditRecipe = (recipe: Recipe) => {
+    setEditorRecipe(recipe);
+    setEditorTitle('Edit Recipe');
+    setEditingRecipeId(recipe.id);
+    setEditorOpen(true);
+  };
+
+  const handleEditorSave = (recipe: Recipe) => {
+    if (editingRecipeId) {
+      setRecipes(prev => prev.map(r => r.id === editingRecipeId ? recipe : r));
+      // Also update meal plan if this recipe is planned
+      setMealPlan(prev => {
+        const updated = { ...prev };
+        for (const day of Object.keys(updated)) {
+          if (updated[day]?.id === editingRecipeId) {
+            updated[day] = recipe;
+          }
+        }
+        return updated;
+      });
+      toast.success('Recipe updated!');
+    } else {
+      setRecipes(prev => [...prev, recipe]);
+      toast.success('Recipe saved!');
+    }
   };
 
   const handleExportGroceryList = () => {
@@ -435,6 +553,33 @@ const MealsPage = () => {
                         {savedDietaryReqs.includes(req.value) && " ✕"}
                       </Badge>
                     ))}
+                    {customDietaryReqs.map(req => (
+                      <Badge
+                        key={req.value}
+                        variant={savedDietaryReqs.includes(req.value as DietaryRequirement) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleSavedDietaryReq(req.value as DietaryRequirement)}
+                      >
+                        {req.label}
+                        {savedDietaryReqs.includes(req.value as DietaryRequirement) && " ✕"}
+                        <button
+                          className="ml-1 text-xs opacity-60 hover:opacity-100"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveCustomReq(req.value); }}
+                        >×</button>
+                      </Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      className="h-8 text-sm max-w-[200px]"
+                      placeholder="Add custom requirement..."
+                      value={newCustomReq}
+                      onChange={e => setNewCustomReq(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddCustomReq()}
+                    />
+                    <Button type="button" variant="outline" size="sm" className="h-8" onClick={handleAddCustomReq} disabled={!newCustomReq.trim()}>
+                      <Plus className="h-3 w-3 mr-1" /> Add
+                    </Button>
                   </div>
                 </div>
 
@@ -795,7 +940,31 @@ const MealsPage = () => {
 
           {/* Recipe Bank Tab */}
           <TabsContent value="recipes" className="space-y-6">
-            <h2 className="text-xl font-semibold">Saved Recipes</h2>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="text-xl font-semibold">Saved Recipes</h2>
+              <div className="flex gap-2">
+                <input
+                  ref={recipeFileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                  onChange={handleScanRecipeFile}
+                  className="hidden"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => recipeFileInputRef.current?.click()}
+                  disabled={scanningRecipe}
+                  className="gap-2"
+                >
+                  {scanningRecipe ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  {scanningRecipe ? 'Scanning...' : 'Scan Recipe'}
+                </Button>
+                <Button size="sm" onClick={handleOpenManualEntry} className="gap-2">
+                  <Plus className="h-4 w-4" /> Add Manually
+                </Button>
+              </div>
+            </div>
 
             {recipes.length === 0 ? (
               <Card>
@@ -825,6 +994,7 @@ const MealsPage = () => {
                         key={recipe.id} 
                         recipe={recipe} 
                         onView={() => setViewingRecipe(recipe)}
+                        onEdit={() => handleEditRecipe(recipe)}
                         onAddToDay={(day) => handleAddToDay(recipe, day)}
                         onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))}
                       />
@@ -842,6 +1012,7 @@ const MealsPage = () => {
                           key={recipe.id} 
                           recipe={recipe} 
                           onView={() => setViewingRecipe(recipe)}
+                          onEdit={() => handleEditRecipe(recipe)}
                           onAddToDay={(day) => handleAddToDay(recipe, day)}
                           onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))}
                         />
@@ -917,6 +1088,14 @@ const MealsPage = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        <RecipeEditorDialog
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          recipe={editorRecipe}
+          onSave={handleEditorSave}
+          title={editorTitle}
+        />
       </div>
     </div>
   );
@@ -926,11 +1105,13 @@ const MealsPage = () => {
 const RecipeCard = ({ 
   recipe, 
   onView, 
+  onEdit,
   onAddToDay, 
   onDelete 
 }: { 
   recipe: Recipe; 
   onView: () => void; 
+  onEdit: () => void;
   onAddToDay: (day: string) => void; 
   onDelete: () => void;
 }) => (
@@ -954,10 +1135,12 @@ const RecipeCard = ({
         {recipe.prepTime + recipe.cookTime} mins
       </div>
       
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <Button size="sm" variant="outline" onClick={onView} className="gap-1">
-          <Eye className="h-4 w-4" />
-          View
+          <Eye className="h-4 w-4" /> View
+        </Button>
+        <Button size="sm" variant="outline" onClick={onEdit} className="gap-1">
+          <Pencil className="h-4 w-4" /> Edit
         </Button>
         <Select onValueChange={onAddToDay}>
           <SelectTrigger className="w-[100px] h-9">
