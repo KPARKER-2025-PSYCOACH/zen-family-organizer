@@ -70,6 +70,7 @@ const MealsPage = () => {
   const [selectedDifficulty, setSelectedDifficulty] = useState<RecipeDifficulty | 'any'>('any');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
+  const [editingDay, setEditingDay] = useState<string | null>(null);
   const [savedDietaryReqs, setSavedDietaryReqs] = useState<DietaryRequirement[]>(() => {
     try {
       const stored = localStorage.getItem('parentassist_dietary_reqs');
@@ -602,16 +603,17 @@ const MealsPage = () => {
               {DAYS_OF_WEEK.map(day => {
                 const recipe = mealPlan[day];
                 return (
-                  <Card key={day}>
+                  <Card 
+                    key={day} 
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setEditingDay(day)}
+                  >
                     <CardContent className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                           <div className="w-24 font-medium">{day}</div>
                           {recipe ? (
-                            <div 
-                              className="flex items-center gap-3 cursor-pointer hover:bg-secondary/50 p-2 rounded-lg transition-colors"
-                              onClick={() => setViewingRecipe(recipe)}
-                            >
+                            <div className="flex items-center gap-3">
                               <div>
                                 <p className="font-medium">{recipe.title}</p>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -624,24 +626,128 @@ const MealsPage = () => {
                               </div>
                             </div>
                           ) : (
-                            <p className="text-muted-foreground">No meal planned</p>
+                            <p className="text-muted-foreground text-sm">Click to add a meal...</p>
                           )}
                         </div>
-                        {recipe && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleRemoveFromDay(day)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <div className="flex items-center gap-1">
+                          {recipe && !recipes.find(r => r.id === recipe.id) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              onClick={(e) => { e.stopPropagation(); handleSaveRecipe(recipe); toast.success('Recipe saved!'); }}
+                            >
+                              <BookOpen className="h-3 w-3" /> Save
+                            </Button>
+                          )}
+                          {recipe && recipes.find(r => r.id === recipe.id) && (
+                            <Badge variant="secondary" className="text-xs">Saved</Badge>
+                          )}
+                          {recipe && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveFromDay(day); }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
+
+            {/* Edit day dialog */}
+            <Dialog open={!!editingDay} onOpenChange={(open) => !open && setEditingDay(null)}>
+              <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>{editingDay ? `${editingDay}'s Meal` : 'Choose Meal'}</DialogTitle>
+                  <DialogDescription>
+                    Pick from your saved recipes or search results
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  {/* Saved recipes */}
+                  {recipes.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Saved Recipes</Label>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {recipes.map(r => (
+                          <div
+                            key={r.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors"
+                            onClick={() => {
+                              if (editingDay) handleAddToDay(r, editingDay);
+                              setEditingDay(null);
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium text-sm">{r.title}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {r.prepTime + r.cookTime} mins
+                                <Badge variant="outline" className="text-xs">{DIFFICULTY_INFO[r.difficulty].label}</Badge>
+                              </div>
+                            </div>
+                            <Plus className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recent search results */}
+                  {searchResults.length > 0 && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Search Results</Label>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {searchResults.map(r => (
+                          <div
+                            key={r.id}
+                            className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors"
+                            onClick={() => {
+                              if (editingDay) handleAddToDay(r, editingDay);
+                              setEditingDay(null);
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium text-sm">{r.title}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                {r.prepTime + r.cookTime} mins
+                                <Badge variant="outline" className="text-xs">{DIFFICULTY_INFO[r.difficulty].label}</Badge>
+                              </div>
+                            </div>
+                            <Plus className="h-4 w-4 text-muted-foreground" />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {recipes.length === 0 && searchResults.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No recipes available yet</p>
+                      <p className="text-xs mt-1">Use the "Find Meals" tab to search for recipes first</p>
+                    </div>
+                  )}
+
+                  {editingDay && mealPlan[editingDay] && (
+                    <Button
+                      variant="outline"
+                      className="w-full text-destructive hover:text-destructive"
+                      onClick={() => { handleRemoveFromDay(editingDay); setEditingDay(null); }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" /> Remove {editingDay}'s Meal
+                    </Button>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {/* Grocery List */}
             {groceryList.length > 0 && (
