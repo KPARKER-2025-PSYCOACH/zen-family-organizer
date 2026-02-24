@@ -55,25 +55,33 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           {
             role: "system",
-            content: `You extract dates and events from documents. Return a JSON array of detected events. Each event:
-- title (string, descriptive event name)
-- detected_date (ISO date string)
-- detected_end_date (ISO date string or null)
-- confidence ("high", "medium", or "low")
-- category ("school", "health", "travel", "birthday", "meal", "work", "personal", "other")
-- suggest_gift (boolean, true if birthday/celebration)
-- gift_reason (string or null)
-- description (brief context from the document)
+            content: `You are an expert at reading document contents and extracting calendar events. 
 
-Only include genuine events with specific dates. Return ONLY valid JSON array, no markdown.`,
+IMPORTANT: Ignore the document filename entirely. Focus ONLY on reading the actual text content of the document to find events, appointments, deadlines, meetings, or any activities with specific dates and times.
+
+Return a JSON array of detected events. Each event must have:
+- title (string, clear descriptive name of the event based on document content)
+- detected_date (ISO datetime string, e.g. "2026-03-15T09:00:00". If only a date is found with no time, use T00:00:00)
+- detected_end_date (ISO datetime string or null. If a duration or end time is mentioned, include it)
+- confidence ("high" if date/time are explicit, "medium" if inferred from context, "low" if ambiguous)
+- category ("school", "health", "travel", "birthday", "meal", "work", "personal", "other")
+- suggest_gift (boolean, true only if it's a birthday or celebration)
+- gift_reason (string or null, e.g. "Birthday party")
+- description (brief context extracted from the document about this event)
+
+Rules:
+- Only include events with specific dates found in the document text
+- Extract times when mentioned (e.g. "3pm", "15:00", "morning drop-off at 8:30")
+- If a time range is given (e.g. "2-4pm"), set both detected_date and detected_end_date with correct times
+- Return ONLY a valid JSON array, no markdown, no explanation`,
           },
           {
             role: "user",
-            content: `Extract all events and dates from this document titled "${fileName}":\n\n${fileContent}`,
+            content: `Read the following document content carefully and extract all events, appointments, and dates with times:\n\n${fileContent}`,
           },
         ],
       }),
