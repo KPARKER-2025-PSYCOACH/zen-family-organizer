@@ -45,15 +45,11 @@ const Index = () => {
               image={calendarImage}
               title="Calendar & email"
               description="Sync your calendars and scan your inbox for dates, times, and events — all in one view."
-              cta="Connect your first calendar"
-              ctaLink="/calendar"
             />
             <FeatureCard
               image={todoImage}
               title="To do list"
               description="Keep track of tasks, errands, and reminders all in one place."
-              cta="Create your first list"
-              ctaLink="/todos"
             />
             <FeatureCard
               image={kitchenImage}
@@ -69,15 +65,11 @@ const Index = () => {
               image={spendingImage}
               title="Family spending"
               description="Track your household budget with a ready-made Google Sheets template — monthly tabs, category totals, and year-end summaries."
-              cta="Set up your budget"
-              ctaLink="/spending"
             />
             <FeatureCard
               image={tasksImage}
               title="Balance family tasks"
               description="Drag-and-drop chores and responsibilities between family members so nothing falls on one person."
-              cta="Assign tasks"
-              ctaLink="/tasks"
             />
           </div>
         </div>
