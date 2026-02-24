@@ -13,6 +13,36 @@ serve(async (req) => {
   }
 
   try {
+    // Handle GET request - this is the OAuth callback from Google
+    if (req.method === "GET") {
+      const url = new URL(req.url);
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      const error = url.searchParams.get("error");
+
+      if (error) {
+        return new Response(`<html><body><script>window.close();</script>OAuth error: ${error}</body></html>`, {
+          headers: { "Content-Type": "text/html" },
+        });
+      }
+
+      if (code && state) {
+        // Redirect back to the app with code and state as a special callback page
+        const parsed = JSON.parse(state);
+        const appUrl = `${url.origin}/functions/v1/google-calendar-auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
+        
+        // Instead of redirecting to another function call, just render HTML that posts the code back
+        return new Response(`<html><body><script>
+          window.opener && window.opener.postMessage({ type: 'google-oauth-callback', code: '${code}', state: ${JSON.stringify(state)} }, '*');
+          setTimeout(() => window.close(), 1000);
+        </script><p>Connected! This window will close automatically.</p></body></html>`, {
+          headers: { "Content-Type": "text/html" },
+        });
+      }
+
+      return new Response("Invalid OAuth callback", { status: 400 });
+    }
+
     const authHeader = req.headers.get("authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
