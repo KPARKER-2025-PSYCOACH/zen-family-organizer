@@ -1,57 +1,80 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut, PoundSterling, Users } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, LogOut, PoundSterling, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns";
 import FamilyMembersSection from "@/components/family/FamilyMembersSection";
 import { useFamilyMembers } from "@/hooks/useFamilyMembers";
+import { useCalendarData, type CalendarEventRow } from "@/hooks/useCalendarData";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
 import giftsImage from "@/assets/gifts.jpg";
-import calendar2Image from "@/assets/calendar-2.jpg";
-import email2Image from "@/assets/email-2.jpg";
-import kitchen2Image from "@/assets/kitchen-2.jpg";
-import gifts2Image from "@/assets/gifts-2.jpg";
 import spendingImage from "@/assets/spending.jpg";
 import tasksImage from "@/assets/tasks.jpg";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useFamilyMembers();
+  const { events, detectedEvents, fetchEvents, fetchDetectedEvents } = useCalendarData();
+
+  useEffect(() => {
+    fetchEvents();
+    fetchDetectedEvents();
+  }, [fetchEvents, fetchDetectedEvents]);
 
   const handleLogout = () => {
     navigate("/");
   };
 
+  // Get upcoming events (today + this week)
+  const upcomingEvents = events
+    .filter(e => {
+      const start = parseISO(e.start_time);
+      return start >= new Date() || isToday(start);
+    })
+    .slice(0, 4);
+
+  // Get today's date formatted
+  const todayFormatted = format(new Date(), "EEEE, d MMM yyyy");
+
+  const formatEventTime = (event: CalendarEventRow) => {
+    if (event.all_day) return "All day";
+    return format(parseISO(event.start_time), "HH:mm");
+  };
+
+  const formatEventDay = (event: CalendarEventRow) => {
+    const start = parseISO(event.start_time);
+    if (isToday(start)) return "Today";
+    if (isTomorrow(start)) return "Tomorrow";
+    return format(start, "EEE");
+  };
+
+  // Pending detected events count
+  const pendingEmails = detectedEvents.length;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Banner Header */}
       <header className="relative overflow-hidden bg-gradient-to-br from-[#f5f3f0] to-[#faf9f7] py-8 px-6">
-        {/* Radial glow */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(201,184,168,0.08)_0%,transparent_70%)] rounded-full" />
-        
-        {/* Settings and Logout buttons */}
         <div className="absolute top-6 right-6 z-10 flex gap-2">
           <Link to="/settings">
-            <Button variant="outline" size="default">
-              Settings
-            </Button>
+            <Button variant="outline" size="default">Settings</Button>
           </Link>
-          <Button variant="outline" size="default" onClick={handleLogout}>
-            Log out
-          </Button>
+          <Button variant="outline" size="default" onClick={handleLogout}>Log out</Button>
         </div>
-
-        {/* Logo content */}
         <div className="relative z-[2] flex flex-col items-center text-center">
           <div className="w-16 h-0.5 bg-gradient-to-r from-transparent via-[#c9b8a8] to-transparent mb-5" />
           <h1 className="text-4xl sm:text-5xl font-normal text-[#2d2d2d] tracking-wide mb-2">Parent Assist</h1>
-          <p className="text-sm text-[#8a8a8a] font-light tracking-wide">The Smith Family</p>
+          <p className="text-sm text-[#8a8a8a] font-light tracking-wide">Family Hub</p>
         </div>
       </header>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* Family Members Section */}
+        {/* Family Members */}
         <FamilyMembersSection
           members={members}
           loading={membersLoading}
@@ -63,7 +86,7 @@ const Dashboard = () => {
         {/* Quick overview */}
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold">Today's overview</h2>
-          <p className="text-muted-foreground">Wednesday, 11 Oct 2025</p>
+          <p className="text-muted-foreground">{todayFormatted}</p>
         </div>
 
         {/* Main sections */}
@@ -78,10 +101,28 @@ const Dashboard = () => {
               actionHref="/calendar"
               backgroundImage={calendarImage}
             >
-              <div className="pt-4 text-center py-8">
-                <p className="text-muted-foreground">No events yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Connect a calendar to get started</p>
-              </div>
+              {upcomingEvents.length === 0 ? (
+                <div className="pt-4 text-center py-8">
+                  <p className="text-muted-foreground">No upcoming events</p>
+                  <p className="text-sm text-muted-foreground mt-1">Connect a calendar or add events to get started</p>
+                </div>
+              ) : (
+                <div className="pt-2 space-y-2">
+                  {upcomingEvents.map(event => (
+                    <EventItem
+                      key={event.id}
+                      time={`${formatEventDay(event)} ${formatEventTime(event)}`}
+                      title={event.title}
+                      category={event.category}
+                    />
+                  ))}
+                  {events.length > 4 && (
+                    <Link to="/calendar" className="block text-sm text-primary hover:underline text-center pt-1">
+                      View all {events.length} events →
+                    </Link>
+                  )}
+                </div>
+              )}
             </DashboardCard>
           </div>
 
@@ -95,10 +136,28 @@ const Dashboard = () => {
               actionHref="/emails"
               backgroundImage={emailImage}
             >
-              <div className="pt-4 text-center py-8">
-                <p className="text-muted-foreground">No emails scanned</p>
-                <p className="text-sm text-muted-foreground mt-1">Connect your inbox to detect events</p>
-              </div>
+              {pendingEmails === 0 ? (
+                <div className="pt-4 text-center py-8">
+                  <p className="text-muted-foreground">No pending emails</p>
+                  <p className="text-sm text-muted-foreground mt-1">Connect your inbox to detect events</p>
+                </div>
+              ) : (
+                <div className="pt-2 space-y-2">
+                  {detectedEvents.slice(0, 3).map(de => (
+                    <EmailItem
+                      key={de.id}
+                      subject={de.title}
+                      detail={de.source_from || de.source_subject || ""}
+                      confidence={de.confidence}
+                    />
+                  ))}
+                  {pendingEmails > 3 && (
+                    <Link to="/emails" className="block text-sm text-primary hover:underline text-center pt-1">
+                      {pendingEmails - 3} more pending →
+                    </Link>
+                  )}
+                </div>
+              )}
             </DashboardCard>
           </div>
 
@@ -140,9 +199,9 @@ const Dashboard = () => {
           <div id="spending-section">
             <DashboardCard
               icon={<PoundSterling className="h-6 w-6" />}
-              title="Family spending"
-              description="Track your household budget with Google Sheets"
-              actionLabel="Manage budget"
+              title="Track spending"
+              description="Track your household spending with Google Sheets"
+              actionLabel="View spending"
               actionHref="/spending"
               backgroundImage={spendingImage}
             >
@@ -170,119 +229,20 @@ const Dashboard = () => {
             </DashboardCard>
           </div>
         </div>
-
-        {/* Quick actions */}
-        <Card className="border-2 border-dashed">
-          <CardContent className="py-8">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Plus className="h-8 w-8 text-muted-foreground" />
-              <div className="text-center sm:text-left">
-                <h3 className="font-semibold">Connect your first calendar</h3>
-                <p className="text-sm text-muted-foreground">
-                  Link Google, Apple, or Android to start seeing your events
-                </p>
-              </div>
-              <Button className="sm:ml-auto">
-                Connect calendar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
 };
 
-const QuickStat = ({ 
-  label, 
-  value, 
-  icon, 
-  backgroundImage, 
-  imagePosition = "right center",
-  imageSize = "cover",
-  imageStyle,
-  opacity = 40,
-  scrollTo
-}: { 
-  label: string; 
-  value: string; 
-  icon: React.ReactNode; 
-  backgroundImage?: string;
-  imagePosition?: string;
-  imageSize?: string;
-  imageStyle?: React.CSSProperties;
-  opacity?: number;
-  scrollTo?: string;
-}) => {
-  const handleClick = () => {
-    if (scrollTo) {
-      const element = document.getElementById(scrollTo);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  };
-
-  return (
-    <Card 
-      className={`relative overflow-hidden shadow-soft ${scrollTo ? 'cursor-pointer hover:shadow-glow transition-shadow' : ''}`}
-      onClick={handleClick}
-    >
-      {/* Faded background image */}
-      {backgroundImage && (
-        <>
-          <div 
-            className="absolute inset-0"
-            style={{ 
-              backgroundImage: `url(${backgroundImage})`,
-              backgroundPosition: imagePosition,
-              backgroundSize: imageSize,
-              backgroundRepeat: 'no-repeat',
-              opacity: opacity / 100,
-              ...imageStyle
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-card via-card/70 to-transparent" />
-        </>
-      )}
-      <CardContent className="relative z-10 pt-6">
-        <div className="flex items-center gap-3">
-          <div className="text-primary">{icon}</div>
-          <div>
-            <p className="text-2xl font-bold">{value}</p>
-            <p className="text-sm text-muted-foreground">{label}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
 const DashboardCard = ({ 
-  icon, 
-  title, 
-  description, 
-  actionLabel,
-  actionHref,
-  backgroundImage,
-  children 
+  icon, title, description, actionLabel, actionHref, backgroundImage, children 
 }: { 
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  actionLabel: string;
-  actionHref: string;
-  backgroundImage?: string;
-  children: React.ReactNode;
+  icon: React.ReactNode; title: string; description: string; actionLabel: string; actionHref: string; backgroundImage?: string; children: React.ReactNode;
 }) => (
   <Card className="relative overflow-hidden shadow-soft hover:shadow-glow transition-all">
-    {/* Faded background image */}
     {backgroundImage && (
       <>
-        <div 
-          className="absolute inset-0 bg-cover bg-center opacity-25"
-          style={{ backgroundImage: `url(${backgroundImage})` }}
-        />
+        <div className="absolute inset-0 bg-cover bg-center opacity-25" style={{ backgroundImage: `url(${backgroundImage})` }} />
         <div className="absolute inset-0 bg-gradient-to-br from-card/70 to-card/90" />
       </>
     )}
@@ -296,9 +256,7 @@ const DashboardCard = ({
           </div>
         </div>
         <Link to={actionHref}>
-          <Button variant="ghost" size="sm">
-            {actionLabel}
-          </Button>
+          <Button variant="ghost" size="sm">{actionLabel}</Button>
         </Link>
       </div>
     </CardHeader>
@@ -308,44 +266,21 @@ const DashboardCard = ({
 
 const EventItem = ({ time, title, category }: { time: string; title: string; category: string }) => (
   <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border">
-    <div className="text-sm font-mono text-muted-foreground w-16">{time}</div>
-    <div className="flex-1">
-      <p className="font-medium">{title}</p>
+    <div className="text-sm font-mono text-muted-foreground w-24 shrink-0">{time}</div>
+    <div className="flex-1 truncate">
+      <p className="font-medium truncate">{title}</p>
     </div>
-    <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary font-medium">
-      {category}
-    </span>
+    <Badge variant="secondary" className="text-xs shrink-0">{category}</Badge>
   </div>
 );
 
 const EmailItem = ({ subject, detail, confidence }: { subject: string; detail: string; confidence: string }) => (
   <div className="p-3 rounded-lg bg-secondary/50 border space-y-1">
     <div className="flex items-start justify-between gap-2">
-      <p className="font-medium text-sm">{subject}</p>
-      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-        confidence === 'high' ? 'bg-success/10 text-success' : 'bg-accent/10 text-accent'
-      }`}>
-        {confidence}
-      </span>
+      <p className="font-medium text-sm truncate">{subject}</p>
+      <Badge variant={confidence === 'high' ? 'default' : 'secondary'} className="text-xs shrink-0">{confidence}</Badge>
     </div>
-    <p className="text-sm text-muted-foreground">{detail}</p>
-  </div>
-);
-
-const MealItem = ({ day, meal }: { day: string; meal: string }) => (
-  <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border">
-    <div className="text-sm font-medium text-muted-foreground w-12">{day}</div>
-    <p className="font-medium">{meal}</p>
-  </div>
-);
-
-const GiftItem = ({ occasion, date, suggestion }: { occasion: string; date: string; suggestion: string }) => (
-  <div className="p-3 rounded-lg bg-secondary/50 border space-y-1">
-    <div className="flex items-start justify-between gap-2">
-      <p className="font-medium text-sm">{occasion}</p>
-      <span className="text-xs text-muted-foreground">{date}</span>
-    </div>
-    <p className="text-sm text-muted-foreground">Suggested: {suggestion}</p>
+    <p className="text-sm text-muted-foreground truncate">{detail}</p>
   </div>
 );
 
