@@ -21,22 +21,20 @@ serve(async (req) => {
       const error = url.searchParams.get("error");
 
       if (error) {
-        return new Response(`<html><body><script>window.close();</script>OAuth error: ${error}</body></html>`, {
-          headers: { "Content-Type": "text/html" },
+        // Redirect back to the app settings page with error
+        return new Response(null, {
+          status: 302,
+          headers: { "Location": `${Deno.env.get("APP_URL") || "https://zen-family-organizer.lovable.app"}/settings?oauth_error=${encodeURIComponent(error)}` },
         });
       }
 
       if (code && state) {
-        // Redirect back to the app with code and state as a special callback page
-        const parsed = JSON.parse(state);
-        const appUrl = `${url.origin}/functions/v1/google-calendar-auth/callback?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state)}`;
-        
-        // Instead of redirecting to another function call, just render HTML that posts the code back
-        return new Response(`<html><body><script>
-          window.opener && window.opener.postMessage({ type: 'google-oauth-callback', code: '${code}', state: ${JSON.stringify(state)} }, '*');
-          setTimeout(() => window.close(), 1000);
-        </script><p>Connected! This window will close automatically.</p></body></html>`, {
-          headers: { "Content-Type": "text/html" },
+        // Redirect back to the app with code and state as query params
+        const appUrl = Deno.env.get("APP_URL") || "https://zen-family-organizer.lovable.app";
+        const redirectUrl = `${appUrl}/settings?oauth_code=${encodeURIComponent(code)}&oauth_state=${encodeURIComponent(state)}`;
+        return new Response(null, {
+          status: 302,
+          headers: { "Location": redirectUrl },
         });
       }
 

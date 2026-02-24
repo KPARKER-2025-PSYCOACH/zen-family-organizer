@@ -113,58 +113,8 @@ export function useCalendarData() {
 
       const data = await res.json();
       if (data.authUrl) {
-        // Open Google OAuth in a popup
-        const popup = window.open(data.authUrl, "google-auth", "width=500,height=600");
-        
-        // Listen for postMessage from the OAuth callback
-        const handleMessage = async (event: MessageEvent) => {
-          if (event.data?.type !== 'google-oauth-callback') return;
-          window.removeEventListener('message', handleMessage);
-          
-          const { code, state } = event.data;
-          if (code) {
-            const parsed = state ? JSON.parse(state) : {};
-            const exchangeRes = await fetch(
-              `https://${projectId}.supabase.co/functions/v1/google-calendar-auth`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: `Bearer ${session.access_token}`,
-                },
-                body: JSON.stringify({
-                  action: "exchange_code",
-                  code,
-                  connectionType: parsed.connectionType || connectionType,
-                }),
-              }
-            );
-
-            const result = await exchangeRes.json();
-            if (result.success) {
-              toast({ title: "Connected successfully!", description: `Connected ${result.email}` });
-              await fetchConnections();
-              await fetchEvents();
-            } else {
-              toast({ title: "Connection failed", description: result.error, variant: "destructive" });
-            }
-          }
-          setLoading(false);
-        };
-        
-        window.addEventListener('message', handleMessage);
-        
-        // Also check if popup was closed without completing
-        const checkClosed = setInterval(() => {
-          if (popup?.closed) {
-            clearInterval(checkClosed);
-            // Give a moment for postMessage to arrive
-            setTimeout(() => {
-              window.removeEventListener('message', handleMessage);
-              setLoading(false);
-            }, 1000);
-          }
-        }, 500);
+        // Navigate directly to Google OAuth (will redirect back to /settings)
+        window.location.href = data.authUrl;
       } else {
         toast({ title: "Failed to start connection", variant: "destructive" });
         setLoading(false);
@@ -174,7 +124,7 @@ export function useCalendarData() {
       toast({ title: "Connection error", variant: "destructive" });
       setLoading(false);
     }
-  }, [toast, fetchConnections, fetchEvents]);
+  }, [toast]);
 
   const syncCalendar = useCallback(async () => {
     setLoading(true);
