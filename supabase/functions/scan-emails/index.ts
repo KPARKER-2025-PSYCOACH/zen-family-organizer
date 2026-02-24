@@ -87,6 +87,14 @@ serve(async (req) => {
       });
     }
 
+    // Get blocked senders
+    const { data: blockedSenders } = await serviceClient
+      .from("blocked_senders")
+      .select("sender_email")
+      .eq("user_id", user.id);
+
+    const blockedEmails = (blockedSenders || []).map((b: any) => b.sender_email.toLowerCase());
+
     const accessToken = await refreshToken(connection, serviceClient);
 
     // Fetch recent emails (last 30 days)
@@ -105,7 +113,7 @@ serve(async (req) => {
     }
 
     const messagesData = await messagesRes.json();
-    const messageIds = (messagesData.messages || []).slice(0, 20);
+    const messageIds = (messagesData.messages || []).slice(0, 30);
 
     // Fetch email details
     const emails = [];
@@ -120,11 +128,19 @@ serve(async (req) => {
         const subject = headers.find((h: any) => h.name === "Subject")?.value || "";
         const from = headers.find((h: any) => h.name === "From")?.value || "";
         const date = headers.find((h: any) => h.name === "Date")?.value || "";
-        emails.push({ subject, from, date, snippet: detail.snippet || "" });
+
+        // Extract email address from "Name <email>" format
+        const emailMatch = from.match(/<([^>]+)>/);
+        const senderEmail = emailMatch ? emailMatch[1].toLowerCase() : from.toLowerCase();
+
+        // Skip blocked senders
+        if (blockedEmails.includes(senderEmail)) continue;
+
+        emails.push({ subject, from, date, snippet: detail.snippet || "", senderEmail });
       }
     }
 
-    // Use AI to extract dates/events from emails
+    // Use AI to categorize and extract from emails
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -139,25 +155,38 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           {
             role: "system",
-            content: `You extract dates and events from emails. Return a JSON array of detected events. Each event:
-- title (string, descriptive event name)
-- detected_date (ISO date string)
-- detected_end_date (ISO date string or null)
-- source_subject (email subject)
-- source_from (sender)
-- confidence ("high", "medium", or "low")
-- category ("school", "health", "travel", "birthday", "meal", "work", "personal", "other")
-- suggest_gift (boolean, true if birthday/celebration)
-- gift_reason (string or null)
-- description (brief context)
+            content: `You analyse emails and categorise them. Return a JSON array where each item represents a relevant email finding.
 
-Only include genuine events with specific dates. Return ONLY valid JSON array, no markdown.`,
+Each item must have:
+- title (string, clear summary)
+- email_category (string, one of: "event", "action_required", "order", "promotion")
+  - "event": calendar events, appointments, meetings, school dates, birthdays, deadlines with specific dates
+  - "action_required": emails needing user action — invoices, payment requests, school forms, work tasks, replies needed
+  - "order": order confirmations, shipping updates, delivery notifications, tracking info
+  - "promotion": marketing emails, sales, discounts, newsletters, offers
+- detected_date (ISO datetime string for events, or the email date for others)
+- detected_end_date (ISO datetime string or null)
+- source_subject (email subject line)
+- source_from (sender)
+- confidence ("high", "medium", "low")
+- category ("school", "health", "travel", "birthday", "meal", "work", "personal", "shopping", "other")
+- suggest_gift (boolean)
+- gift_reason (string or null)
+- description (brief useful summary for the user)
+
+Rules:
+- Skip obvious spam and junk mail entirely
+- For "event" items, only include ones with specific dates/times
+- For "action_required", focus on things that genuinely need user attention
+- For "order", include delivery status info in description
+- For "promotion", only include genuinely useful offers, skip generic marketing
+- Return ONLY valid JSON array, no markdown`,
           },
-          { role: "user", content: `Extract events from these emails:\n\n${emailSummaries}` },
+          { role: "user", content: `Analyse and categorise these emails:\n\n${emailSummaries}` },
         ],
       }),
     });
@@ -196,6 +225,7 @@ Only include genuine events with specific dates. Return ONLY valid JSON array, n
       category: e.category || "other",
       suggest_gift: e.suggest_gift || false,
       gift_reason: e.gift_reason || null,
+      email_category: e.email_category || "event",
       status: "pending",
     }));
 

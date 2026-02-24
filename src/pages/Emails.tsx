@@ -1,20 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Mail, RefreshCw, Search, X, Upload, FileText } from "lucide-react";
+import { Mail, RefreshCw, Search, X, Calendar, AlertTriangle, Package, Tag, Ban, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { useCalendarData } from "@/hooks/useCalendarData";
-import { useDocumentScanner } from "@/hooks/useDocumentScanner";
 import DetectedEventsDialog from "@/components/calendar/DetectedEventsDialog";
 import { useToast } from "@/hooks/use-toast";
-
-const CONFIDENCE_COLORS: Record<string, string> = {
-  high: "bg-green-100 text-green-800 border-green-200",
-  medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  low: "bg-red-100 text-red-800 border-red-200",
-};
 
 interface EmailConnectionRow {
   id: string;
@@ -24,11 +17,43 @@ interface EmailConnectionRow {
   last_scanned: string | null;
 }
 
+interface DetectedItem {
+  id: string;
+  title: string;
+  detected_date: string;
+  detected_end_date: string | null;
+  source_subject: string | null;
+  source_from: string | null;
+  source_type: string;
+  confidence: string;
+  category: string;
+  email_category: string;
+  suggest_gift: boolean;
+  gift_reason: string | null;
+  description: string | null;
+  status: string;
+}
+
+interface BlockedSender {
+  id: string;
+  sender_email: string;
+  sender_name: string | null;
+  blocked_at: string;
+}
+
+const CONFIDENCE_COLORS: Record<string, string> = {
+  high: "bg-green-100 text-green-800 border-green-200",
+  medium: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  low: "bg-red-100 text-red-800 border-red-200",
+};
+
 const EmailsPage = () => {
   const [emailConnections, setEmailConnections] = useState<EmailConnectionRow[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [detectedDialogOpen, setDetectedDialogOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [allItems, setAllItems] = useState<DetectedItem[]>([]);
+  const [blockedSenders, setBlockedSenders] = useState<BlockedSender[]>([]);
+  const [showBlocked, setShowBlocked] = useState(false);
   const { toast } = useToast();
 
   const {
@@ -40,23 +65,34 @@ const EmailsPage = () => {
     loading,
   } = useCalendarData();
 
-  const { scanning, scanDocument } = useDocumentScanner();
-
   const fetchEmailConnections = async () => {
-    const { data } = await supabase
-      .from("email_connections")
-      .select("*");
+    const { data } = await supabase.from("email_connections").select("*");
     setEmailConnections((data as any[]) || []);
+  };
+
+  const fetchAllItems = async () => {
+    const { data } = await supabase
+      .from("detected_events")
+      .select("*")
+      .eq("source_type", "email")
+      .eq("status", "pending")
+      .order("detected_date", { ascending: true });
+    setAllItems((data as any[]) || []);
+  };
+
+  const fetchBlockedSenders = async () => {
+    const { data } = await supabase.from("blocked_senders").select("*").order("blocked_at", { ascending: false });
+    setBlockedSenders((data as any[]) || []);
   };
 
   useEffect(() => {
     fetchEmailConnections();
+    fetchAllItems();
+    fetchBlockedSenders();
     fetchDetectedEvents();
   }, [fetchDetectedEvents]);
 
-  const gmailConnection = emailConnections.find(
-    (c) => c.provider === "gmail" && c.connected
-  );
+  const gmailConnection = emailConnections.find((c) => c.provider === "gmail" && c.connected);
 
   const handleScanEmails = async () => {
     setIsScanning(true);
@@ -83,12 +119,12 @@ const EmailsPage = () => {
       const data = await res.json();
       if (data.success) {
         toast({
-          title: `Found ${data.count} event${data.count !== 1 ? "s" : ""}`,
-          description: "Review and approve detected events",
+          title: `Scanned ${data.count} item${data.count !== 1 ? "s" : ""}`,
+          description: "Review categorised emails below",
         });
+        await fetchAllItems();
         await fetchDetectedEvents();
         await fetchEmailConnections();
-        if (data.count > 0) setDetectedDialogOpen(true);
       } else {
         toast({ title: "Scan failed", description: data.error, variant: "destructive" });
       }
@@ -101,226 +137,189 @@ const EmailsPage = () => {
   };
 
   const handleDisconnect = async (connectionId: string) => {
-    await supabase
-      .from("email_connections")
-      .update({ connected: false } as any)
-      .eq("id", connectionId);
+    await supabase.from("email_connections").update({ connected: false } as any).eq("id", connectionId);
     toast({ title: "Gmail disconnected" });
     await fetchEmailConnections();
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const count = await scanDocument(file);
-    if (count > 0) {
-      await fetchDetectedEvents();
-      setDetectedDialogOpen(true);
+  const handleBlockSender = async (senderFrom: string) => {
+    const emailMatch = senderFrom.match(/<([^>]+)>/);
+    const senderEmail = emailMatch ? emailMatch[1] : senderFrom;
+    const senderName = emailMatch ? senderFrom.replace(/<[^>]+>/, "").trim() : null;
+
+    const { error } = await supabase.from("blocked_senders").insert({
+      sender_email: senderEmail.toLowerCase(),
+      sender_name: senderName,
+    } as any);
+
+    if (!error) {
+      toast({ title: "Sender blocked", description: `Emails from ${senderEmail} will be ignored` });
+      // Dismiss all pending items from this sender
+      const senderItems = allItems.filter((item) => {
+        const match = item.source_from?.match(/<([^>]+)>/);
+        const itemEmail = match ? match[1].toLowerCase() : item.source_from?.toLowerCase();
+        return itemEmail === senderEmail.toLowerCase();
+      });
+      for (const item of senderItems) {
+        await dismissDetectedEvent(item.id);
+      }
+      await fetchAllItems();
+      await fetchBlockedSenders();
     }
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const handleUnblockSender = async (id: string) => {
+    await supabase.from("blocked_senders").delete().eq("id", id);
+    toast({ title: "Sender unblocked" });
+    await fetchBlockedSenders();
+  };
+
+  // Categorise items
+  const eventItems = allItems.filter((i) => i.email_category === "event");
+  const actionItems = allItems.filter((i) => i.email_category === "action_required");
+  const orderItems = allItems.filter((i) => i.email_category === "order");
+  const promoItems = allItems.filter((i) => i.email_category === "promotion");
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader
-        title="Email & Document Scanner"
-        subtitle="Find important dates in your emails and documents"
-      />
+      <PageHeader title="Email Scanner" subtitle="AI-powered email insights and event detection" />
 
       <div className="container mx-auto px-4 py-8">
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Gmail Connection */}
-          <div className="lg:col-span-1 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mail className="h-5 w-5" />
-                  Gmail
-                </CardTitle>
-                <CardDescription>Connect your Gmail to scan for events</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {gmailConnection ? (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
-                      <div>
-                        <p className="font-medium text-sm">{gmailConnection.email}</p>
-                        {gmailConnection.last_scanned && (
-                          <p className="text-xs text-muted-foreground">
-                            Last scanned: {new Date(gmailConnection.last_scanned).toLocaleString("en-GB")}
-                          </p>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDisconnect(gmailConnection.id)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <Button
-                      onClick={handleScanEmails}
-                      disabled={isScanning}
-                      className="w-full gap-2"
-                    >
-                      {isScanning ? (
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Search className="h-4 w-4" />
+        {/* Connection & Controls */}
+        <div className="flex flex-wrap gap-4 mb-8">
+          <Card className="flex-1 min-w-[280px]">
+            <CardContent className="pt-6">
+              {gmailConnection ? (
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Mail className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium text-sm">{gmailConnection.email}</p>
+                      {gmailConnection.last_scanned && (
+                        <p className="text-xs text-muted-foreground">
+                          Last scanned: {new Date(gmailConnection.last_scanned).toLocaleString("en-GB")}
+                        </p>
                       )}
-                      {isScanning ? "Scanning..." : "Scan Emails"}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button onClick={handleScanEmails} disabled={isScanning} size="sm" className="gap-2">
+                      {isScanning ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                      {isScanning ? "Scanning..." : "Scan"}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDisconnect(gmailConnection.id)}>
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
-                ) : (
-                  <Button
-                    onClick={() => connectGoogle("email")}
-                    disabled={loading}
-                    className="w-full gap-2"
-                  >
-                    {loading ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Mail className="h-4 w-4" />
-                    )}
-                    Connect Gmail
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Document Upload */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Upload Documents
-                </CardTitle>
-                <CardDescription>
-                  Upload PDF or Word docs to find dates
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={scanning}
-                  variant="outline"
-                  className="w-full gap-2"
-                >
-                  {scanning ? (
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Upload className="h-4 w-4" />
-                  )}
-                  {scanning ? "Scanning..." : "Upload & Scan"}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Pending count */}
-            {detectedEvents.length > 0 && (
-              <Card className="border-primary/30">
-                <CardContent className="pt-6">
-                  <Button
-                    onClick={() => setDetectedDialogOpen(true)}
-                    className="w-full gap-2"
-                  >
-                    <Badge className="bg-primary-foreground text-primary">
-                      {detectedEvents.length}
-                    </Badge>
-                    Review Detected Events
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* How it works */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>How It Works</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg border bg-secondary/30">
-                    <div className="flex items-center gap-3 mb-2">
-                      <Mail className="h-8 w-8 text-primary" />
-                      <h3 className="font-semibold">Email Scanning</h3>
-                    </div>
-                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Connect your Gmail account</li>
-                      <li>Click "Scan Emails" to analyse recent messages</li>
-                      <li>AI detects dates, events, and appointments</li>
-                      <li>Approve events to add them to your calendar</li>
-                    </ol>
-                  </div>
-                  <div className="p-4 rounded-lg border bg-secondary/30">
-                    <div className="flex items-center gap-3 mb-2">
-                      <FileText className="h-8 w-8 text-primary" />
-                      <h3 className="font-semibold">Document Scanning</h3>
-                    </div>
-                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                      <li>Upload a PDF, Word doc, or text file</li>
-                      <li>AI reads the document for dates and events</li>
-                      <li>Review detected events in a pop-up</li>
-                      <li>Approve to add to your calendar</li>
-                    </ol>
-                  </div>
                 </div>
+              ) : (
+                <Button onClick={() => connectGoogle("email")} disabled={loading} className="w-full gap-2">
+                  {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+                  Connect Gmail
+                </Button>
+              )}
+            </CardContent>
+          </Card>
 
-                {detectedEvents.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Search className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                    <p>No pending events</p>
-                    <p className="text-sm mt-1">
-                      Connect Gmail or upload a document to get started
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <h3 className="font-semibold">
-                      Pending Events ({detectedEvents.length})
-                    </h3>
-                    {detectedEvents.slice(0, 5).map((event) => (
-                      <div
-                        key={event.id}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                      >
-                        <div>
-                          <p className="font-medium text-sm">{event.title}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(event.detected_date).toLocaleDateString("en-GB")}
-                            {" · "}
-                            {event.source_type === "email" ? "📧 Email" : "📄 Document"}
-                          </p>
-                        </div>
-                        <Badge variant="outline" className={CONFIDENCE_COLORS[event.confidence]}>
-                          {event.confidence}
-                        </Badge>
-                      </div>
-                    ))}
-                    {detectedEvents.length > 5 && (
-                      <Button
-                        variant="link"
-                        onClick={() => setDetectedDialogOpen(true)}
-                      >
-                        View all {detectedEvents.length} events →
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* Blocked senders toggle */}
+          <Button variant="outline" className="gap-2 self-center" onClick={() => setShowBlocked(!showBlocked)}>
+            <Ban className="h-4 w-4" />
+            Blocked ({blockedSenders.length})
+          </Button>
         </div>
+
+        {/* Blocked senders panel */}
+        {showBlocked && (
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Ban className="h-4 w-4" /> Blocked Senders
+              </CardTitle>
+              <CardDescription>Emails from these senders are automatically ignored</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {blockedSenders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No blocked senders</p>
+              ) : (
+                <div className="space-y-2">
+                  {blockedSenders.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30">
+                      <div>
+                        <p className="text-sm font-medium">{b.sender_name || b.sender_email}</p>
+                        {b.sender_name && <p className="text-xs text-muted-foreground">{b.sender_email}</p>}
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => handleUnblockSender(b.id)} className="gap-1">
+                        <ShieldCheck className="h-3 w-3" /> Unblock
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Sectioned email results */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Events to add to calendar */}
+          <EmailSection
+            icon={<Calendar className="h-5 w-5" />}
+            title="Events & Dates"
+            description="Appointments, meetings, and dates to add to your calendar"
+            items={eventItems}
+            onApprove={async (item) => { await approveDetectedEvent(item as any); await fetchAllItems(); }}
+            onDismiss={async (id) => { await dismissDetectedEvent(id); await fetchAllItems(); }}
+            onBlock={handleBlockSender}
+            emptyMessage="No events detected"
+            accentColor="text-blue-600"
+          />
+
+          {/* Action required */}
+          <EmailSection
+            icon={<AlertTriangle className="h-5 w-5" />}
+            title="Action Required"
+            description="Invoices, school forms, payments, and emails needing your attention"
+            items={actionItems}
+            onDismiss={async (id) => { await dismissDetectedEvent(id); await fetchAllItems(); }}
+            onBlock={handleBlockSender}
+            emptyMessage="Nothing needs your attention"
+            accentColor="text-amber-600"
+          />
+
+          {/* Orders */}
+          <EmailSection
+            icon={<Package className="h-5 w-5" />}
+            title="Orders & Deliveries"
+            description="Shipping updates, order confirmations, and delivery tracking"
+            items={orderItems}
+            onDismiss={async (id) => { await dismissDetectedEvent(id); await fetchAllItems(); }}
+            onBlock={handleBlockSender}
+            emptyMessage="No orders detected"
+            accentColor="text-green-600"
+          />
+
+          {/* Promotions */}
+          <EmailSection
+            icon={<Tag className="h-5 w-5" />}
+            title="Promotions & Offers"
+            description="Deals, discounts, and newsletters"
+            items={promoItems}
+            onDismiss={async (id) => { await dismissDetectedEvent(id); await fetchAllItems(); }}
+            onBlock={handleBlockSender}
+            emptyMessage="No promotions found"
+            accentColor="text-purple-600"
+          />
+        </div>
+
+        {/* Still show pending events from calendar data for approval dialog */}
+        {detectedEvents.length > 0 && (
+          <div className="mt-6">
+            <Button onClick={() => setDetectedDialogOpen(true)} variant="outline" className="gap-2">
+              <Badge className="bg-primary text-primary-foreground">{detectedEvents.length}</Badge>
+              Review All Pending Calendar Events
+            </Button>
+          </div>
+        )}
       </div>
 
       <DetectedEventsDialog
@@ -333,5 +332,85 @@ const EmailsPage = () => {
     </div>
   );
 };
+
+interface EmailSectionProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  items: DetectedItem[];
+  onApprove?: (item: DetectedItem) => Promise<void>;
+  onDismiss: (id: string) => Promise<void>;
+  onBlock: (senderFrom: string) => Promise<void>;
+  emptyMessage: string;
+  accentColor: string;
+}
+
+const EmailSection = ({ icon, title, description, items, onApprove, onDismiss, onBlock, emptyMessage, accentColor }: EmailSectionProps) => (
+  <Card>
+    <CardHeader>
+      <CardTitle className={`flex items-center gap-2 text-base ${accentColor}`}>
+        {icon}
+        {title}
+        {items.length > 0 && (
+          <Badge variant="secondary" className="ml-auto">{items.length}</Badge>
+        )}
+      </CardTitle>
+      <CardDescription className="text-xs">{description}</CardDescription>
+    </CardHeader>
+    <CardContent>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">{emptyMessage}</p>
+      ) : (
+        <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          {items.map((item) => (
+            <div key={item.id} className="p-3 rounded-lg border bg-secondary/30 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm">{item.title}</p>
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-xs text-muted-foreground">
+                      {new Date(item.detected_date).toLocaleDateString("en-GB")}
+                    </span>
+                    {item.source_from && (
+                      <span className="text-xs text-muted-foreground truncate max-w-[180px]">
+                        · from {item.source_from}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Badge variant="outline" className={CONFIDENCE_COLORS[item.confidence]}>
+                  {item.confidence}
+                </Badge>
+              </div>
+              <div className="flex gap-2 justify-end">
+                {onApprove && (
+                  <Button size="sm" variant="default" onClick={() => onApprove(item)} className="text-xs h-7">
+                    Add to Calendar
+                  </Button>
+                )}
+                <Button size="sm" variant="ghost" onClick={() => onDismiss(item.id)} className="text-xs h-7">
+                  Dismiss
+                </Button>
+                {item.source_from && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onBlock(item.source_from!)}
+                    className="text-xs h-7 text-destructive hover:text-destructive"
+                  >
+                    <Ban className="h-3 w-3 mr-1" /> Block
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </CardContent>
+  </Card>
+);
 
 export default EmailsPage;
