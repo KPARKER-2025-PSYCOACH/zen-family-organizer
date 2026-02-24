@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_senders: {
+        Row: {
+          blocked_at: string
+          id: string
+          sender_email: string
+          sender_name: string | null
+          user_id: string
+        }
+        Insert: {
+          blocked_at?: string
+          id?: string
+          sender_email: string
+          sender_name?: string | null
+          user_id: string
+        }
+        Update: {
+          blocked_at?: string
+          id?: string
+          sender_email?: string
+          sender_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       calendar_connections: {
         Row: {
           access_token: string | null
@@ -123,6 +147,7 @@ export type Database = {
           description: string | null
           detected_date: string
           detected_end_date: string | null
+          email_category: string
           gift_reason: string | null
           id: string
           source_from: string | null
@@ -140,6 +165,7 @@ export type Database = {
           description?: string | null
           detected_date: string
           detected_end_date?: string | null
+          email_category?: string
           gift_reason?: string | null
           id?: string
           source_from?: string | null
@@ -157,6 +183,7 @@ export type Database = {
           description?: string | null
           detected_date?: string
           detected_end_date?: string | null
+          email_category?: string
           gift_reason?: string | null
           id?: string
           source_from?: string | null
