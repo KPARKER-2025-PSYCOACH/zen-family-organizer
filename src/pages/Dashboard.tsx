@@ -49,18 +49,9 @@ const Dashboard = () => {
 
       <div className="container mx-auto px-4 py-8 space-y-8">
         {/* Quick overview */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold">Today's overview</h2>
-            <p className="text-muted-foreground">Wednesday, 11 Oct 2025</p>
-          </div>
-          
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <QuickStat label="Events today" value="0" icon={<Calendar className="h-5 w-5" />} backgroundImage={calendar2Image} imagePosition="right bottom" imageStyle={{ transform: 'scaleX(-1)' }} opacity={60} scrollTo="calendar-section" />
-            <QuickStat label="Pending emails" value="0" icon={<Mail className="h-5 w-5" />} backgroundImage={email2Image} imagePosition="right bottom" scrollTo="email-section" />
-            <QuickStat label="Meals planned" value="0/7" icon={<UtensilsCrossed className="h-5 w-5" />} backgroundImage={kitchen2Image} imagePosition="right calc(100% + 20px)" scrollTo="meals-section" />
-            <QuickStat label="Gift lists and ideas" value="0" icon={<Gift className="h-5 w-5" />} backgroundImage={gifts2Image} imagePosition="right center" imageSize="cover" scrollTo="gifts-section" />
-          </div>
+        <div className="flex items-center justify-between">
+          <h2 className="text-3xl font-bold">Today's overview</h2>
+          <p className="text-muted-foreground">Wednesday, 11 Oct 2025</p>
         </div>
 
         {/* Main sections */}
