@@ -1,3 +1,8 @@
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useCalendarData } from "@/hooks/useCalendarData";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -6,6 +11,70 @@ import { ArrowLeft, Calendar, Mail, Bell, Shield, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const Settings = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { toast } = useToast();
+  const { connectGoogle, fetchConnections, connections, loading: calLoading } = useCalendarData();
+  const [processingOAuth, setProcessingOAuth] = useState(false);
+
+  // Handle OAuth callback redirect
+  useEffect(() => {
+    const code = searchParams.get("oauth_code");
+    const state = searchParams.get("oauth_state");
+    const error = searchParams.get("oauth_error");
+
+    if (error) {
+      toast({ title: "Connection failed", description: error, variant: "destructive" });
+      setSearchParams({}, { replace: true });
+      return;
+    }
+
+    if (code && state) {
+      setProcessingOAuth(true);
+      const exchangeCode = async () => {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session) return;
+
+          const parsed = JSON.parse(state);
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          const res = await fetch(
+            `https://${projectId}.supabase.co/functions/v1/google-calendar-auth`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                action: "exchange_code",
+                code,
+                connectionType: parsed.connectionType || "calendar",
+              }),
+            }
+          );
+
+          const result = await res.json();
+          if (result.success) {
+            toast({ title: "Connected successfully!", description: `Connected ${result.email}` });
+            await fetchConnections();
+          } else {
+            toast({ title: "Connection failed", description: result.error, variant: "destructive" });
+          }
+        } catch (e) {
+          console.error("OAuth exchange error:", e);
+          toast({ title: "Connection error", variant: "destructive" });
+        } finally {
+          setProcessingOAuth(false);
+          setSearchParams({}, { replace: true });
+        }
+      };
+      exchangeCode();
+    }
+  }, [searchParams, setSearchParams, toast, fetchConnections]);
+
+  useEffect(() => {
+    fetchConnections();
+  }, [fetchConnections]);
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -37,26 +106,20 @@ const Settings = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+            {processingOAuth && (
+              <div className="p-4 rounded-lg bg-primary/10 text-sm text-center">
+                Connecting your account...
+              </div>
+            )}
             <div className="space-y-4">
               <ConnectionItem 
                 name="Google Calendar"
-                status="Connected"
-                lastSync="2 minutes ago"
-              />
-              <ConnectionItem 
-                name="Apple Calendar"
-                status="Not connected"
-                lastSync={null}
-              />
-              <ConnectionItem 
-                name="Android Calendar"
-                status="Not connected"
-                lastSync={null}
+                status={connections.some(c => c.provider === "google" && c.connected) ? "Connected" : "Not connected"}
+                lastSync={connections.find(c => c.provider === "google")?.last_synced || null}
+                onConnect={() => connectGoogle("calendar")}
+                loading={calLoading}
               />
             </div>
-            <Button variant="outline" className="w-full">
-              Add calendar connection
-            </Button>
           </CardContent>
         </Card>
 
@@ -181,7 +244,7 @@ const Settings = () => {
   );
 };
 
-const ConnectionItem = ({ name, status, lastSync }: { name: string; status: string; lastSync: string | null }) => (
+const ConnectionItem = ({ name, status, lastSync, onConnect, loading }: { name: string; status: string; lastSync: string | null; onConnect?: () => void; loading?: boolean }) => (
   <div className="flex items-center justify-between p-4 rounded-lg border bg-secondary/30">
     <div>
       <p className="font-medium">{name}</p>
@@ -197,8 +260,8 @@ const ConnectionItem = ({ name, status, lastSync }: { name: string; status: stri
         </Button>
       )}
       {status !== 'Connected' && (
-        <Button size="sm">
-          Connect
+        <Button size="sm" onClick={onConnect} disabled={loading}>
+          {loading ? "Connecting..." : "Connect"}
         </Button>
       )}
     </div>
