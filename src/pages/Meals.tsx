@@ -13,7 +13,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, GripVertical, Trash2, Eye, Upload, RefreshCw, Pencil, X } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
-import type { FamilyMember, Recipe, MealPlan, GroceryItem, DietaryRequirement, CuisineType, RecipeDifficulty } from "@/types";
+import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
+import type { Recipe, MealPlan, GroceryItem, DietaryRequirement, CuisineType, RecipeDifficulty } from "@/types";
 
 const DIETARY_REQUIREMENTS: { value: DietaryRequirement; label: string }[] = [
   { value: 'vegetarian', label: 'Vegetarian' },
@@ -60,11 +61,10 @@ const DIFFICULTY_INFO: Record<RecipeDifficulty, { label: string; color: string; 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const MealsPage = () => {
-  const [familyMembers, setFamilyMembers] = useState<FamilyMember[]>([]);
+  const { members: familyMembers } = useFamilyMembers();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [mealPlan, setMealPlan] = useState<Record<string, Recipe | null>>({});
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
-  const [isAddingMember, setIsAddingMember] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [selectedCuisine, setSelectedCuisine] = useState<CuisineType | 'any'>('any');
@@ -110,53 +110,32 @@ const MealsPage = () => {
     );
   };
 
-  // New family member form
-  const [newMember, setNewMember] = useState<Partial<FamilyMember>>({
-    name: '',
-    age: 0,
-    dietaryRequirements: [],
-    likes: [],
-    dislikes: [],
-  });
-
-  const handleAddMember = () => {
-    if (!newMember.name || !newMember.age) return;
-    
-    const member: FamilyMember = {
-      id: Date.now().toString(),
-      name: newMember.name,
-      age: newMember.age,
-      dietaryRequirements: newMember.dietaryRequirements || [],
-      likes: newMember.likes || [],
-      dislikes: newMember.dislikes || [],
-    };
-    
-    setFamilyMembers([...familyMembers, member]);
-    setNewMember({ name: '', age: 0, dietaryRequirements: [], likes: [], dislikes: [] });
-    setIsAddingMember(false);
-  };
-
-  const toggleDietaryRequirement = (requirement: DietaryRequirement) => {
-    const current = newMember.dietaryRequirements || [];
-    if (current.includes(requirement)) {
-      setNewMember({ ...newMember, dietaryRequirements: current.filter(r => r !== requirement) });
-    } else {
-      setNewMember({ ...newMember, dietaryRequirements: [...current, requirement] });
-    }
-  };
 
   const fetchRecipes = async (offset: number, append: boolean) => {
     if (append) setIsLoadingMore(true); else setIsSearching(true);
 
     try {
+      // Combine saved dietary reqs with family member dietary reqs
+      const familyDietaryReqs = [...new Set(familyMembers.flatMap(m => m.dietary_requirements))];
+      const allDietaryReqs = [
+        ...savedDietaryReqs.map(r => DIETARY_REQUIREMENTS.find(d => d.value === r)?.label || r),
+        ...familyDietaryReqs,
+      ].filter((v, i, a) => a.indexOf(v) === i);
+
+      // Build family context for AI
+      const familyContext = familyMembers.length > 0
+        ? `Family members: ${familyMembers.map(m => {
+            const age = calculateAge(m.birth_date);
+            return `${m.name}${age ? ` (${age}yo)` : ""}${m.likes.length ? `, likes: ${m.likes.join(", ")}` : ""}${m.dislikes.length ? `, dislikes: ${m.dislikes.join(", ")}` : ""}`;
+          }).join("; ")}`
+        : "";
+
       const { data, error } = await supabase.functions.invoke('meal-search', {
         body: {
           cuisine: selectedCuisine,
           difficulty: selectedDifficulty,
-          query: searchQuery,
-          dietaryRequirements: savedDietaryReqs.map(r =>
-            DIETARY_REQUIREMENTS.find(d => d.value === r)?.label || r
-          ),
+          query: familyContext ? `${searchQuery}. ${familyContext}` : searchQuery,
+          dietaryRequirements: allDietaryReqs,
           offset,
         },
       });
@@ -379,11 +358,7 @@ const MealsPage = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="planner" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-4">
-            <TabsTrigger value="family">
-              <Users className="h-4 w-4 mr-1 hidden sm:inline" />
-              Family
-            </TabsTrigger>
+          <TabsList className="grid w-full max-w-md grid-cols-3">
             <TabsTrigger value="search">
               <Sparkles className="h-4 w-4 mr-1 hidden sm:inline" />
               Find Meals
@@ -398,132 +373,20 @@ const MealsPage = () => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Family Tab */}
-          <TabsContent value="family" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">Family Members</h2>
-              <Dialog open={isAddingMember} onOpenChange={setIsAddingMember}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2">
-                    <Plus className="h-4 w-4" />
-                    Add Member
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Add Family Member</DialogTitle>
-                    <DialogDescription>
-                      Add dietary preferences for meal suggestions
-                    </DialogDescription>
-                  </DialogHeader>
-                  
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="member-name">Name *</Label>
-                        <Input 
-                          id="member-name" 
-                          value={newMember.name}
-                          onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
-                          placeholder="e.g. Emily"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="member-age">Age *</Label>
-                        <Input 
-                          id="member-age" 
-                          type="number"
-                          value={newMember.age || ''}
-                          onChange={(e) => setNewMember({ ...newMember, age: parseInt(e.target.value) || 0 })}
-                          placeholder="e.g. 8"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Dietary Requirements</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {DIETARY_REQUIREMENTS.map(req => (
-                          <Badge 
-                            key={req.value}
-                            variant={newMember.dietaryRequirements?.includes(req.value) ? "default" : "outline"}
-                            className="cursor-pointer"
-                            onClick={() => toggleDietaryRequirement(req.value)}
-                          >
-                            {req.label}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="likes">Likes</Label>
-                      <Input 
-                        id="likes"
-                        placeholder="e.g. Pasta, Chicken, Rice (comma separated)"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const likes = e.currentTarget.value.split(',').map(l => l.trim()).filter(l => l);
-                            setNewMember({ ...newMember, likes });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="dislikes">Dislikes</Label>
-                      <Input 
-                        id="dislikes"
-                        placeholder="e.g. Mushrooms, Spicy food (comma separated)"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            const dislikes = e.currentTarget.value.split(',').map(d => d.trim()).filter(d => d);
-                            setNewMember({ ...newMember, dislikes });
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <Button onClick={handleAddMember} className="w-full">
-                      Add Family Member
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {familyMembers.length === 0 ? (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">No family members added</p>
-                  <p className="text-sm text-muted-foreground mt-1">Add members to get personalised meal suggestions</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {familyMembers.map(member => (
-                  <Card key={member.id}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-lg">{member.name}</CardTitle>
-                      <CardDescription>{member.age} years old</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {member.dietaryRequirements.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                          {member.dietaryRequirements.map(req => (
-                            <Badge key={req} variant="secondary" className="text-xs">
-                              {DIETARY_REQUIREMENTS.find(r => r.value === req)?.label}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </TabsContent>
+          {/* Family dietary info banner */}
+          {familyMembers.length > 0 && (
+            <Card className="shadow-soft">
+              <CardContent className="py-3 px-4">
+                <p className="text-sm text-muted-foreground">
+                  <Users className="h-4 w-4 inline mr-1" />
+                  Personalising for {familyMembers.length} family member{familyMembers.length > 1 ? "s" : ""}: {familyMembers.map(m => m.name).join(", ")}
+                  {familyMembers.some(m => m.dietary_requirements.length > 0) && (
+                    <span> · Dietary: {[...new Set(familyMembers.flatMap(m => m.dietary_requirements))].join(", ")}</span>
+                  )}
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Search Tab */}
           <TabsContent value="search" className="space-y-6">

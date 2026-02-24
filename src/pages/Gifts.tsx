@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Gift, Plus, Search, User, Calendar, Sparkles, ExternalLink, Heart, Trash2 } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
+import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
 import type { GiftRecipient, GiftOccasion, GiftSuggestion, AgeCategory, PersonalityType } from "@/types";
 
 const AGE_CATEGORIES: { value: AgeCategory; label: string }[] = [
@@ -50,6 +51,7 @@ const SUGGESTED_INTERESTS = [
 ];
 
 const GiftsPage = () => {
+  const { members: familyMembers } = useFamilyMembers();
   const [recipients, setRecipients] = useState<GiftRecipient[]>([]);
   const [occasions, setOccasions] = useState<GiftOccasion[]>([]);
   const [suggestions, setSuggestions] = useState<GiftSuggestion[]>([]);
@@ -139,6 +141,12 @@ const GiftsPage = () => {
   };
 
   const buildGiftSearchPrompt = (recipient: GiftRecipient, query: string) => {
+    // Enrich with family member data if available
+    const familyMatch = familyMembers.find(m => m.name.toLowerCase() === recipient.name.toLowerCase());
+    const familyContext = familyMatch
+      ? `\nFamily profile data: Age ${calculateAge(familyMatch.birth_date) ?? "unknown"}, Likes: ${familyMatch.likes.join(", ") || "N/A"}, Dislikes: ${familyMatch.dislikes.join(", ") || "N/A"}, Hobbies: ${familyMatch.hobbies.join(", ") || "N/A"}`
+      : "";
+
     return `Find gift suggestions for:
 Name: ${recipient.name}
 Relationship: ${recipient.relationship}
@@ -147,8 +155,8 @@ Hobbies: ${recipient.hobbies.join(', ') || 'Not specified'}
 Dislikes: ${recipient.dislikes.join(', ') || 'Not specified'}
 Personality: ${recipient.personalityTypes.map(p => 
   PERSONALITY_TYPES.find(pt => pt.value === p)?.label
-).join(', ') || 'Not specified'}
-Additional context: ${query || 'No specific requirements'}`;
+).join(', ') || 'Not specified'}${familyContext}
+Additional context: ${query || 'No specific requirements'}`; 
   };
 
   const toggleInterest = (interest: string) => {

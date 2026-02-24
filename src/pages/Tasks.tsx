@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useFamilyMembers, type FamilyMemberProfile } from "@/hooks/useFamilyMembers";
 import {
   DndContext,
   DragOverlay,
@@ -305,10 +306,29 @@ const TasksPage = () => {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [newMemberName, setNewMemberName] = useState("");
   const [customTaskText, setCustomTaskText] = useState("");
+  const { members: dbMembers } = useFamilyMembers();
 
   useEffect(() => {
     saveState(state);
   }, [state]);
+
+  // Sync DB family members into task columns (add missing, keep existing tasks)
+  useEffect(() => {
+    if (dbMembers.length === 0) return;
+    setState(prev => {
+      const existingNames = new Set(prev.members.map(m => m.name.toLowerCase()));
+      const newMembers = dbMembers
+        .filter(dm => !existingNames.has(dm.name.toLowerCase()))
+        .map(dm => ({
+          id: dm.id,
+          name: dm.name,
+          color: dm.color,
+          tasks: [] as Task[],
+        }));
+      if (newMembers.length === 0) return prev;
+      return { ...prev, members: [...prev.members, ...newMembers] };
+    });
+  }, [dbMembers]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
