@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, ShoppingCart, LogOut, PoundSterling, Users } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import FamilyMembersSection from "@/components/family/FamilyMembersSection";
+import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
@@ -15,6 +17,7 @@ import tasksImage from "@/assets/tasks.jpg";
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useFamilyMembers();
 
   const handleLogout = () => {
     navigate("/");
@@ -48,6 +51,15 @@ const Dashboard = () => {
       </header>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
+        {/* Family Members Section */}
+        <FamilyMembersSection
+          members={members}
+          loading={membersLoading}
+          onAdd={addMember}
+          onUpdate={updateMember}
+          onDelete={deleteMember}
+        />
+
         {/* Quick overview */}
         <div className="flex items-center justify-between">
           <h2 className="text-3xl font-bold">Today's overview</h2>

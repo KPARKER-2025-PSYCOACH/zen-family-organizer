@@ -241,6 +241,54 @@ export type Database = {
         }
         Relationships: []
       }
+      family_members: {
+        Row: {
+          birth_date: string | null
+          color: string
+          created_at: string
+          dietary_requirements: string[]
+          dislikes: string[]
+          hobbies: string[]
+          id: string
+          likes: string[]
+          name: string
+          notes: string | null
+          photo_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          birth_date?: string | null
+          color?: string
+          created_at?: string
+          dietary_requirements?: string[]
+          dislikes?: string[]
+          hobbies?: string[]
+          id?: string
+          likes?: string[]
+          name: string
+          notes?: string | null
+          photo_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          birth_date?: string | null
+          color?: string
+          created_at?: string
+          dietary_requirements?: string[]
+          dislikes?: string[]
+          hobbies?: string[]
+          id?: string
+          likes?: string[]
+          name?: string
+          notes?: string | null
+          photo_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sheets_connections: {
         Row: {
           created_at: string
