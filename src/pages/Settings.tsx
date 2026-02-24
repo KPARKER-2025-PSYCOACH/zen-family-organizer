@@ -239,6 +239,15 @@ const Settings = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Done button */}
+        <div className="flex justify-end pt-2 pb-8">
+          <Link to="/calendar">
+            <Button size="lg">
+              Done
+            </Button>
+          </Link>
+        </div>
       </div>
     </div>
   );
