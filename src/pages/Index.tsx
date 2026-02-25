@@ -57,9 +57,9 @@ const Index = () => {
               description="Save favourite recipes, plan your week, and generate shopping lists instantly."
             />
             <FeatureCard
-              image={giftsImage}
-              title="Gift suggestions"
-              description="Timely reminders and thoughtful gift ideas based on upcoming events."
+              image={tasksImage}
+              title="Balance family tasks"
+              description="Drag-and-drop chores and responsibilities between family members so nothing falls on one person."
             />
             <FeatureCard
               image={spendingImage}
@@ -67,9 +67,9 @@ const Index = () => {
               description="Track your household budget with a ready-made Google Sheets template — monthly tabs, category totals, and year-end summaries."
             />
             <FeatureCard
-              image={tasksImage}
-              title="Balance family tasks"
-              description="Drag-and-drop chores and responsibilities between family members so nothing falls on one person."
+              image={giftsImage}
+              title="Gift suggestions"
+              description="Timely reminders and thoughtful gift ideas based on upcoming events."
             />
           </div>
         </div>
