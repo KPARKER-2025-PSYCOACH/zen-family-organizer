@@ -15,7 +15,7 @@ import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart,
 import PageHeader from "@/components/layout/PageHeader";
 import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
 import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
-import type { Recipe, GroceryItem, DietaryRequirement, CuisineType, RecipeDifficulty } from "@/types";
+import type { Recipe, GroceryItem, DietaryRequirement, CuisineType } from "@/types";
 
 // ============ Constants ============
 
@@ -55,11 +55,8 @@ const CUISINE_TYPES: { value: CuisineType; label: string }[] = [
   { value: 'british', label: '🇬🇧 British' },
 ];
 
-const DIFFICULTY_INFO: Record<RecipeDifficulty, { label: string; color: string; icon: string }> = {
-  easy: { label: 'Easy', color: 'bg-green-100 text-green-800', icon: '👍' },
-  medium: { label: 'Medium', color: 'bg-yellow-100 text-yellow-800', icon: '👨‍🍳' },
-  hard: { label: 'Hard', color: 'bg-red-100 text-red-800', icon: '🔥' },
-};
+
+
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -88,7 +85,7 @@ const MealsPage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
   const [selectedCuisine, setSelectedCuisine] = useState<CuisineType | 'any'>('any');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<RecipeDifficulty | 'any'>('any');
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
   const [editingDay, setEditingDay] = useState<string | null>(null);
@@ -155,7 +152,7 @@ const MealsPage = () => {
         : "";
 
       const { data, error } = await supabase.functions.invoke('meal-search', {
-        body: { cuisine: selectedCuisine, difficulty: selectedDifficulty, query: familyContext ? `${searchQuery}. ${familyContext}` : searchQuery, dietaryRequirements: allDietaryReqs, offset },
+        body: { cuisine: selectedCuisine, query: familyContext ? `${searchQuery}. ${familyContext}` : searchQuery, dietaryRequirements: allDietaryReqs, offset },
       });
 
       if (error) throw error;
@@ -416,18 +413,8 @@ const MealsPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Difficulty</Label>
-                    <Select value={selectedDifficulty} onValueChange={(v) => setSelectedDifficulty(v as RecipeDifficulty | 'any')}>
-                      <SelectTrigger><SelectValue placeholder="Any difficulty" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Any difficulty</SelectItem>
-                        <SelectItem value="easy">Easy (Quick & Simple)</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="hard">Hard (Chef Level)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+
+
                   <div className="space-y-2">
                     <Label>Special Request</Label>
                     <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g. kid-friendly, under 30 mins" />
@@ -449,7 +436,6 @@ const MealsPage = () => {
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
                           <div><CardTitle className="text-lg">{recipe.title}</CardTitle><CardDescription>{recipe.description}</CardDescription></div>
-                          <Badge className={DIFFICULTY_INFO[recipe.difficulty].color}>{DIFFICULTY_INFO[recipe.difficulty].icon} {DIFFICULTY_INFO[recipe.difficulty].label}</Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
@@ -604,7 +590,6 @@ const MealsPage = () => {
                               <p className="font-medium text-sm">{r.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3" />{r.prepTime + r.cookTime} mins
-                                <Badge variant="outline" className="text-xs">{DIFFICULTY_INFO[r.difficulty].label}</Badge>
                               </div>
                             </div>
                             <Plus className="h-4 w-4 text-muted-foreground" />
@@ -625,7 +610,6 @@ const MealsPage = () => {
                               <p className="font-medium text-sm">{r.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Clock className="h-3 w-3" />{r.prepTime + r.cookTime} mins
-                                <Badge variant="outline" className="text-xs">{DIFFICULTY_INFO[r.difficulty].label}</Badge>
                               </div>
                             </div>
                             <Plus className="h-4 w-4 text-muted-foreground" />
@@ -731,7 +715,6 @@ const MealsPage = () => {
                 <DialogHeader>
                   <div className="flex items-start justify-between">
                     <div><DialogTitle className="text-2xl">{viewingRecipe.title}</DialogTitle><DialogDescription>{viewingRecipe.description}</DialogDescription></div>
-                    <Badge className={DIFFICULTY_INFO[viewingRecipe.difficulty].color}>{DIFFICULTY_INFO[viewingRecipe.difficulty].icon} {DIFFICULTY_INFO[viewingRecipe.difficulty].label}</Badge>
                   </div>
                 </DialogHeader>
                 <div className="space-y-6">
@@ -778,7 +761,6 @@ const RecipeCard = ({ recipe, onView, onEdit, onAddToDay, onDelete }: { recipe: 
     <CardHeader className="pb-2">
       <div className="flex items-start justify-between">
         <div><CardTitle className="text-lg">{recipe.title}</CardTitle><Badge variant="outline" className="mt-1">{CUISINE_TYPES.find(c => c.value === recipe.cuisine)?.label}</Badge></div>
-        <Badge className={DIFFICULTY_INFO[recipe.difficulty].color}>{DIFFICULTY_INFO[recipe.difficulty].icon}</Badge>
       </div>
     </CardHeader>
     <CardContent>
