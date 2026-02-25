@@ -1,7 +1,7 @@
 // ============ Calendar Types ============
 export interface CalendarConnection {
   id: string;
-  provider: 'google' | 'apple' | 'outlook';
+  provider: 'google';
   email: string;
   connected: boolean;
   lastSynced?: Date;
@@ -21,7 +21,7 @@ export interface CalendarEvent {
 // ============ Email Types ============
 export interface EmailConnection {
   id: string;
-  provider: 'gmail' | 'outlook' | 'yahoo' | 'icloud';
+  provider: 'gmail';
   email: string;
   connected: boolean;
   foldersToScan: string[];
