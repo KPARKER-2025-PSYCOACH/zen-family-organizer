@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, LogOut, PoundSterling, Users } from "lucide-react";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, LogOut, PoundSterling, Users, CheckSquare } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import FamilyMembersSection from "@/components/family/FamilyMembersSection";
 import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 import { useCalendarData, type CalendarEventRow } from "@/hooks/useCalendarData";
+import { useSpendingData } from "@/hooks/useSpendingData";
 import { supabase } from "@/integrations/supabase/client";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
@@ -15,6 +16,7 @@ import kitchenImage from "@/assets/kitchen.jpg";
 import giftsImage from "@/assets/gifts.jpg";
 import spendingImage from "@/assets/spending.jpg";
 import tasksImage from "@/assets/tasks.jpg";
+import todoImage from "@/assets/todo.jpg";
 
 interface InboxEmail {
   id: string;
@@ -24,29 +26,62 @@ interface InboxEmail {
   snippet: string;
 }
 
+interface TodoItem { id: string; text: string; completed: boolean; }
+interface TodoList { id: string; name: string; items: TodoItem[]; collapsed: boolean; }
+interface PlannedMeal { id: string; mealType: string; name: string; }
+interface TasksMember { id: string; name: string; tasks: { id: string; text: string; category: string; }[]; }
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useFamilyMembers();
   const { events, detectedEvents, fetchEvents, fetchDetectedEvents } = useCalendarData();
+  const { grandTotal, totalByCategory } = useSpendingData(new Date().getFullYear());
   const [inboxEmails, setInboxEmails] = useState<InboxEmail[]>([]);
   const [inboxLoading, setInboxLoading] = useState(false);
+
+  // Local storage data
+  const [todoLists, setTodoLists] = useState<TodoList[]>([]);
+  const [plannedMeals, setPlannedMeals] = useState<Record<string, PlannedMeal[]>>({});
+  const [taskMembers, setTaskMembers] = useState<TasksMember[]>([]);
 
   useEffect(() => {
     fetchEvents();
     fetchDetectedEvents();
     fetchInbox();
+    loadLocalData();
   }, [fetchEvents, fetchDetectedEvents]);
+
+  const loadLocalData = () => {
+    // Todo lists
+    try {
+      const raw = localStorage.getItem("parentassist_todo/lists");
+      if (raw) setTodoLists(JSON.parse(raw));
+    } catch {}
+
+    // Planned meals
+    try {
+      const raw = localStorage.getItem("parentassist_meals/planned");
+      if (raw) setPlannedMeals(JSON.parse(raw));
+    } catch {}
+
+    // Family tasks
+    try {
+      const raw = localStorage.getItem("parentassist_tasks/state");
+      if (raw) {
+        const state = JSON.parse(raw);
+        if (state.members) setTaskMembers(state.members);
+      }
+    } catch {}
+  };
 
   const fetchInbox = async () => {
     setInboxLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-
       const res = await supabase.functions.invoke("scan-emails", {
         body: { action: "fetch_inbox" },
       });
-
       if (res.data?.emails) {
         setInboxEmails(res.data.emails);
       }
@@ -61,7 +96,7 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  // Get upcoming events (today + this week)
+  // Upcoming events
   const upcomingEvents = events
     .filter(e => {
       const start = parseISO(e.start_time);
@@ -69,7 +104,6 @@ const Dashboard = () => {
     })
     .slice(0, 4);
 
-  // Get today's date formatted
   const todayFormatted = format(new Date(), "EEEE, d MMM yyyy");
 
   const formatEventTime = (event: CalendarEventRow) => {
@@ -84,6 +118,11 @@ const Dashboard = () => {
     return format(start, "EEE");
   };
 
+  // Computed summaries
+  const totalTodoItems = todoLists.reduce((sum, l) => sum + l.items.filter(i => !i.completed).length, 0);
+  const totalMealsPlanned = Object.values(plannedMeals).reduce((sum, meals) => sum + meals.length, 0);
+  const totalAssignedTasks = taskMembers.reduce((sum, m) => sum + m.tasks.length, 0);
+  const topCategories = totalByCategory.filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 3);
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,142 +158,221 @@ const Dashboard = () => {
           <p className="text-muted-foreground">{todayFormatted}</p>
         </div>
 
-        {/* Main sections */}
-        <div className="grid lg:grid-cols-2 gap-6">
+        {/* Top row: Calendar, Email, To-do — 3 columns */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Calendar */}
-          <div id="calendar-section">
-            <DashboardCard
-              icon={<Calendar className="h-6 w-6" />}
-              title="Smart calendar"
-              description="All your family events in one place"
-              actionLabel="View calendar"
-              actionHref="/calendar"
-              backgroundImage={calendarImage}
-            >
-              {upcomingEvents.length === 0 ? (
-                <div className="pt-4 text-center py-8">
-                  <p className="text-muted-foreground">No upcoming events</p>
-                  <p className="text-sm text-muted-foreground mt-1">Connect a calendar or add events to get started</p>
-                </div>
-              ) : (
-                <div className="pt-2 space-y-2">
-                  {upcomingEvents.map(event => (
-                    <EventItem
-                      key={event.id}
-                      time={`${formatEventDay(event)} ${formatEventTime(event)}`}
-                      title={event.title}
-                      category={event.category}
-                    />
-                  ))}
-                  {events.length > 4 && (
-                    <Link to="/calendar" className="block text-sm text-primary hover:underline text-center pt-1">
-                      View all {events.length} events →
-                    </Link>
-                  )}
-                </div>
-              )}
-            </DashboardCard>
-          </div>
+          <DashboardCard
+            icon={<Calendar className="h-6 w-6" />}
+            title="Smart calendar"
+            description="All your family events in one place"
+            actionLabel="View calendar"
+            actionHref="/calendar"
+            backgroundImage={calendarImage}
+            tintColor="hsla(140, 40%, 80%, 0.25)"
+          >
+            {upcomingEvents.length === 0 ? (
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No upcoming events</p>
+                <p className="text-sm text-muted-foreground mt-1">Connect a calendar or add events to get started</p>
+              </div>
+            ) : (
+              <div className="pt-2 space-y-2">
+                {upcomingEvents.map(event => (
+                  <EventItem
+                    key={event.id}
+                    time={`${formatEventDay(event)} ${formatEventTime(event)}`}
+                    title={event.title}
+                    category={event.category}
+                  />
+                ))}
+                {events.length > 4 && (
+                  <Link to="/calendar" className="block text-sm text-primary hover:underline text-center pt-1">
+                    View all {events.length} events →
+                  </Link>
+                )}
+              </div>
+            )}
+          </DashboardCard>
 
           {/* Email inbox */}
-          <div id="email-section">
-            <DashboardCard
-              icon={<Mail className="h-6 w-6" />}
-              title="Email inbox"
-              description="Latest emails from your primary inbox"
-              actionLabel="Review emails"
-              actionHref="/emails"
-              backgroundImage={emailImage}
-            >
-              {inboxEmails.length === 0 ? (
-                <div className="pt-4 text-center py-8">
-                  <p className="text-muted-foreground">
-                    {inboxLoading ? "Loading inbox..." : "No emails to show"}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">Connect your Gmail to see your latest messages</p>
-                </div>
-              ) : (
-                <div className="pt-2 space-y-2">
-                  {inboxEmails.map(email => (
-                    <InboxItem
-                      key={email.id}
-                      subject={email.subject}
-                      from={email.from}
-                      snippet={email.snippet}
-                    />
-                  ))}
-                </div>
-              )}
-            </DashboardCard>
-          </div>
+          <DashboardCard
+            icon={<Mail className="h-6 w-6" />}
+            title="Email inbox"
+            description="Latest emails from your primary inbox"
+            actionLabel="Review emails"
+            actionHref="/emails"
+            backgroundImage={emailImage}
+            tintColor="hsla(210, 50%, 82%, 0.25)"
+          >
+            {inboxEmails.length === 0 ? (
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">
+                  {inboxLoading ? "Loading inbox..." : "No emails to show"}
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">Connect your Gmail to see your latest messages</p>
+              </div>
+            ) : (
+              <div className="pt-2 space-y-2">
+                {inboxEmails.map(email => (
+                  <InboxItem
+                    key={email.id}
+                    subject={email.subject}
+                    from={email.from}
+                    snippet={email.snippet}
+                  />
+                ))}
+              </div>
+            )}
+          </DashboardCard>
 
+          {/* To-do list */}
+          <DashboardCard
+            icon={<CheckSquare className="h-6 w-6" />}
+            title="To do list"
+            description="Your tasks and reminders"
+            actionLabel="View lists"
+            actionHref="/todos"
+            backgroundImage={todoImage}
+            tintColor="hsla(45, 60%, 82%, 0.25)"
+          >
+            {todoLists.length === 0 ? (
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No to-do lists yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Create a list to start tracking tasks</p>
+              </div>
+            ) : (
+              <div className="pt-2 space-y-2">
+                {todoLists.slice(0, 3).map(list => {
+                  const pending = list.items.filter(i => !i.completed).length;
+                  const done = list.items.filter(i => i.completed).length;
+                  return (
+                    <div key={list.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border">
+                      <p className="font-medium text-sm truncate">{list.name}</p>
+                      <div className="flex gap-2 text-xs text-muted-foreground">
+                        {pending > 0 && <span>{pending} pending</span>}
+                        {done > 0 && <span className="text-success">{done} done</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+                {totalTodoItems > 0 && (
+                  <Link to="/todos" className="block text-sm text-primary hover:underline text-center pt-1">
+                    {totalTodoItems} items remaining →
+                  </Link>
+                )}
+              </div>
+            )}
+          </DashboardCard>
+        </div>
+
+        {/* Bottom rows: 2 columns — Meals/Tasks then Spending/Gifts */}
+        <div className="grid lg:grid-cols-2 gap-6">
           {/* Meal planning */}
-          <div id="meals-section">
-            <DashboardCard
-              icon={<UtensilsCrossed className="h-6 w-6" />}
-              title="Meal planner"
-              description="This week's meals and shopping list"
-              actionLabel="Plan meals"
-              actionHref="/meals"
-              backgroundImage={kitchenImage}
-            >
+          <DashboardCard
+            icon={<UtensilsCrossed className="h-6 w-6" />}
+            title="Meal planner"
+            description="This week's meals and shopping list"
+            actionLabel="Plan meals"
+            actionHref="/meals"
+            backgroundImage={kitchenImage}
+            tintColor="hsla(50, 60%, 82%, 0.25)"
+          >
+            {totalMealsPlanned === 0 ? (
               <div className="pt-4 text-center py-8">
                 <p className="text-muted-foreground">No meals planned</p>
                 <p className="text-sm text-muted-foreground mt-1">Start planning your week</p>
               </div>
-            </DashboardCard>
-          </div>
-
-          {/* Gift suggestions */}
-          <div id="gifts-section">
-            <DashboardCard
-              icon={<Gift className="h-6 w-6" />}
-              title="Gift ideas"
-              description="Upcoming occasions and suggestions"
-              actionLabel="Browse gifts"
-              actionHref="/gifts"
-              backgroundImage={giftsImage}
-            >
-              <div className="pt-4 text-center py-8">
-                <p className="text-muted-foreground">No upcoming occasions</p>
-                <p className="text-sm text-muted-foreground mt-1">Add events to get gift suggestions</p>
+            ) : (
+              <div className="pt-2 space-y-2">
+                {Object.entries(plannedMeals).slice(0, 3).map(([day, meals]) => (
+                  <div key={day} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border">
+                    <span className="text-sm font-medium w-20 shrink-0">{day}</span>
+                    <span className="text-sm text-muted-foreground truncate">{meals.map(m => m.name).join(", ")}</span>
+                  </div>
+                ))}
+                <Link to="/meals" className="block text-sm text-primary hover:underline text-center pt-1">
+                  {totalMealsPlanned} meals planned →
+                </Link>
               </div>
-            </DashboardCard>
-          </div>
-
-          {/* Family Spending */}
-          <div id="spending-section">
-            <DashboardCard
-              icon={<PoundSterling className="h-6 w-6" />}
-              title="Track spending"
-              description="Track your household spending with Google Sheets"
-              actionLabel="View spending"
-              actionHref="/spending"
-              backgroundImage={spendingImage}
-            >
-              <div className="pt-4 text-center py-8">
-                <p className="text-muted-foreground">No budget created yet</p>
-                <p className="text-sm text-muted-foreground mt-1">Create a spending spreadsheet to get started</p>
-              </div>
-            </DashboardCard>
-          </div>
+            )}
+          </DashboardCard>
 
           {/* Balance Family Tasks */}
-          <div id="tasks-section">
-            <DashboardCard
-              icon={<Users className="h-6 w-6" />}
-              title="Balance family tasks"
-              description="Assign and share household responsibilities"
-              actionLabel="Manage tasks"
-              actionHref="/tasks"
-              backgroundImage={tasksImage}
-            >
+          <DashboardCard
+            icon={<Users className="h-6 w-6" />}
+            title="Balance family tasks"
+            description="Assign and share household responsibilities"
+            actionLabel="Manage tasks"
+            actionHref="/tasks"
+            backgroundImage={tasksImage}
+            tintColor="hsla(270, 40%, 85%, 0.25)"
+          >
+            {totalAssignedTasks === 0 ? (
               <div className="pt-4 text-center py-8">
                 <p className="text-muted-foreground">No tasks assigned yet</p>
                 <p className="text-sm text-muted-foreground mt-1">Add family members and drag tasks to get started</p>
               </div>
-            </DashboardCard>
-          </div>
+            ) : (
+              <div className="pt-2 space-y-2">
+                {taskMembers.filter(m => m.tasks.length > 0).slice(0, 3).map(member => (
+                  <div key={member.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border">
+                    <p className="font-medium text-sm truncate">{member.name}</p>
+                    <Badge variant="secondary" className="text-xs">{member.tasks.length} tasks</Badge>
+                  </div>
+                ))}
+                <Link to="/tasks" className="block text-sm text-primary hover:underline text-center pt-1">
+                  {totalAssignedTasks} tasks assigned →
+                </Link>
+              </div>
+            )}
+          </DashboardCard>
+
+          {/* Family Spending */}
+          <DashboardCard
+            icon={<PoundSterling className="h-6 w-6" />}
+            title="Track spending"
+            description="Track your household spending"
+            actionLabel="View spending"
+            actionHref="/spending"
+            backgroundImage={spendingImage}
+            tintColor="hsla(25, 60%, 82%, 0.25)"
+          >
+            {grandTotal === 0 ? (
+              <div className="pt-4 text-center py-8">
+                <p className="text-muted-foreground">No spending recorded yet</p>
+                <p className="text-sm text-muted-foreground mt-1">Start tracking your household budget</p>
+              </div>
+            ) : (
+              <div className="pt-2 space-y-2">
+                <div className="p-3 rounded-lg bg-secondary/50 border text-center">
+                  <p className="text-2xl font-semibold">£{grandTotal.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Total this year</p>
+                </div>
+                {topCategories.map(({ category, total }) => (
+                  <div key={category} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border">
+                    <p className="text-sm truncate">{category}</p>
+                    <p className="text-sm font-medium">£{total.toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DashboardCard>
+
+          {/* Gift suggestions */}
+          <DashboardCard
+            icon={<Gift className="h-6 w-6" />}
+            title="Gift ideas"
+            description="Upcoming occasions and suggestions"
+            actionLabel="Browse gifts"
+            actionHref="/gifts"
+            backgroundImage={giftsImage}
+            tintColor="hsla(340, 40%, 85%, 0.25)"
+          >
+            <div className="pt-4 text-center py-8">
+              <p className="text-muted-foreground">No upcoming occasions</p>
+              <p className="text-sm text-muted-foreground mt-1">Add events to get gift suggestions</p>
+            </div>
+          </DashboardCard>
         </div>
       </div>
     </div>
@@ -262,9 +380,9 @@ const Dashboard = () => {
 };
 
 const DashboardCard = ({ 
-  icon, title, description, actionLabel, actionHref, backgroundImage, children 
+  icon, title, description, actionLabel, actionHref, backgroundImage, tintColor, children 
 }: { 
-  icon: React.ReactNode; title: string; description: string; actionLabel: string; actionHref: string; backgroundImage?: string; children: React.ReactNode;
+  icon: React.ReactNode; title: string; description: string; actionLabel: string; actionHref: string; backgroundImage?: string; tintColor?: string; children: React.ReactNode;
 }) => (
   <Card className="relative overflow-hidden shadow-soft hover:shadow-glow transition-all">
     {backgroundImage && (
@@ -272,6 +390,9 @@ const DashboardCard = ({
         <div className="absolute inset-0 bg-cover bg-center opacity-25" style={{ backgroundImage: `url(${backgroundImage})` }} />
         <div className="absolute inset-0 bg-gradient-to-br from-card/70 to-card/90" />
       </>
+    )}
+    {tintColor && (
+      <div className="absolute inset-0" style={{ backgroundColor: tintColor }} />
     )}
     <CardHeader className="relative z-10">
       <div className="flex items-start justify-between">
@@ -302,7 +423,6 @@ const EventItem = ({ time, title, category }: { time: string; title: string; cat
 );
 
 const InboxItem = ({ subject, from, snippet }: { subject: string; from: string; snippet: string }) => {
-  // Extract sender name from "Name <email>" format
   const senderName = from.replace(/<[^>]+>/, "").trim() || from;
   return (
     <div className="p-3 rounded-lg bg-secondary/50 border space-y-1">
