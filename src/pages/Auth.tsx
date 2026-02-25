@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Eye, EyeOff, Mail, Lock, User } from "lucide-react";
 import { z } from "zod";
-import parentAssistLogo from "@/assets/parent-assist-logo-transparent.png";
+
 import { lovable } from "@/integrations/lovable/index";
 
 const emailSchema = z.string().email("Please enter a valid email address");
