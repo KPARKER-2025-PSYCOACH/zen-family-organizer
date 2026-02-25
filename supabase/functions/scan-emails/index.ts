@@ -71,6 +71,11 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    // Parse action from body
+    let body: any = {};
+    try { body = await req.json(); } catch { /* empty body for backwards compat */ }
+    const action = body.action || "scan";
+
     // Get email connection
     const { data: connection } = await serviceClient
       .from("email_connections")
@@ -87,6 +92,51 @@ serve(async (req) => {
       });
     }
 
+    const accessToken = await refreshToken(connection, serviceClient);
+
+    // ============ FETCH INBOX: latest 5 primary emails ============
+    if (action === "fetch_inbox") {
+      // Gmail category:primary excludes promotions, social, updates, forums
+      const messagesRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=5&q=category:primary`,
+        { headers: { Authorization: `Bearer ${accessToken}` } }
+      );
+
+      if (!messagesRes.ok) {
+        console.error("Gmail list error:", await messagesRes.text());
+        return new Response(JSON.stringify({ error: "Failed to fetch emails" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const messagesData = await messagesRes.json();
+      const messageIds = messagesData.messages || [];
+
+      const emails = [];
+      for (const msg of messageIds) {
+        const detailRes = await fetch(
+          `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`,
+          { headers: { Authorization: `Bearer ${accessToken}` } }
+        );
+        if (detailRes.ok) {
+          const detail = await detailRes.json();
+          const headers = detail.payload?.headers || [];
+          emails.push({
+            id: msg.id,
+            subject: headers.find((h: any) => h.name === "Subject")?.value || "(No subject)",
+            from: headers.find((h: any) => h.name === "From")?.value || "",
+            date: headers.find((h: any) => h.name === "Date")?.value || "",
+            snippet: detail.snippet || "",
+          });
+        }
+      }
+
+      return new Response(JSON.stringify({ emails }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ============ SCAN: AI categorisation (existing behaviour) ============
     // Get blocked senders
     const { data: blockedSenders } = await serviceClient
       .from("blocked_senders")
@@ -94,8 +144,6 @@ serve(async (req) => {
       .eq("user_id", user.id);
 
     const blockedEmails = (blockedSenders || []).map((b: any) => b.sender_email.toLowerCase());
-
-    const accessToken = await refreshToken(connection, serviceClient);
 
     // Fetch recent emails (last 30 days)
     const after = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000);
@@ -129,18 +177,16 @@ serve(async (req) => {
         const from = headers.find((h: any) => h.name === "From")?.value || "";
         const date = headers.find((h: any) => h.name === "Date")?.value || "";
 
-        // Extract email address from "Name <email>" format
         const emailMatch = from.match(/<([^>]+)>/);
         const senderEmail = emailMatch ? emailMatch[1].toLowerCase() : from.toLowerCase();
 
-        // Skip blocked senders
         if (blockedEmails.includes(senderEmail)) continue;
 
         emails.push({ subject, from, date, snippet: detail.snippet || "", senderEmail });
       }
     }
 
-    // Use AI to categorize and extract from emails
+    // Use AI to categorize
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -211,7 +257,6 @@ Rules:
       detectedEvents = [];
     }
 
-    // Save detected events
     const eventsToInsert = detectedEvents.map((e: any) => ({
       user_id: user.id,
       source_type: "email",
@@ -233,7 +278,6 @@ Rules:
       await serviceClient.from("detected_events").insert(eventsToInsert);
     }
 
-    // Update last scanned
     await serviceClient
       .from("email_connections")
       .update({ last_scanned: new Date().toISOString() })
