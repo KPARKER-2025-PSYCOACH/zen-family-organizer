@@ -14,7 +14,7 @@ import { useFamilyMembers, calculateAge, MEMBER_COLORS, type FamilyMemberProfile
 
 const DIETARY_OPTIONS = [
   "Vegetarian", "Vegan", "Pescatarian", "Gluten Free", "Dairy Free",
-  "Nut Free", "Egg Free", "Soy Free", "Low Carb", "Keto", "Paleo",
+  "Nut Free", "Egg Free", "Soy Free", "Lactose Intolerant", "Low Carb", "Keto", "Paleo",
   "Halal", "Kosher", "Low Sodium", "Diabetic Friendly",
 ];
 
@@ -43,17 +43,20 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<FamilyMemberProfile>>(emptyForm());
   const [saving, setSaving] = useState(false);
+  const [customDietaryInput, setCustomDietaryInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openAdd = () => {
     setEditingId(null);
     setForm({ ...emptyForm(), color: MEMBER_COLORS[members.length % MEMBER_COLORS.length] });
+    setCustomDietaryInput("");
     setDialogOpen(true);
   };
 
   const openEdit = (m: FamilyMemberProfile) => {
     setEditingId(m.id);
     setForm({ ...m });
+    setCustomDietaryInput("");
     setDialogOpen(true);
   };
 
@@ -254,7 +257,7 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
             </div>
 
             {/* Dietary Requirements */}
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label>Dietary Requirements</Label>
               <div className="flex flex-wrap gap-1.5">
                 {DIETARY_OPTIONS.map(r => (
@@ -265,14 +268,56 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
                     onClick={() => toggleDietary(r)}
                   >{r}</Badge>
                 ))}
+                {/* Show any custom ones already saved that aren't in the standard list */}
+                {(form.dietary_requirements || []).filter(r => !DIETARY_OPTIONS.includes(r)).map(r => (
+                  <Badge
+                    key={r}
+                    variant="default"
+                    className="cursor-pointer text-xs"
+                    onClick={() => toggleDietary(r)}
+                  >{r} ✕</Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add custom requirement…"
+                  value={customDietaryInput}
+                  onChange={e => setCustomDietaryInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const trimmed = customDietaryInput.trim();
+                      if (trimmed && !(form.dietary_requirements || []).includes(trimmed)) {
+                        setForm({ ...form, dietary_requirements: [...(form.dietary_requirements || []), trimmed] });
+                      }
+                      setCustomDietaryInput("");
+                    }
+                  }}
+                  className="h-8 text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 px-3"
+                  onClick={() => {
+                    const trimmed = customDietaryInput.trim();
+                    if (trimmed && !(form.dietary_requirements || []).includes(trimmed)) {
+                      setForm({ ...form, dietary_requirements: [...(form.dietary_requirements || []), trimmed] });
+                    }
+                    setCustomDietaryInput("");
+                  }}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
               </div>
             </div>
 
             {/* Likes */}
             <div className="space-y-1">
-              <Label>Likes</Label>
+              <Label>Likes <span className="text-xs text-muted-foreground font-normal">(comma separated)</span></Label>
               <Input
-                placeholder="Comma separated (e.g. Pasta, Football, Drawing)"
+                placeholder="e.g. Pasta, Football, Drawing"
                 value={form.likes?.join(", ") || ""}
                 onChange={e => setForm({ ...form, likes: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
               />
@@ -280,9 +325,9 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
 
             {/* Dislikes */}
             <div className="space-y-1">
-              <Label>Dislikes</Label>
+              <Label>Dislikes <span className="text-xs text-muted-foreground font-normal">(comma separated)</span></Label>
               <Input
-                placeholder="Comma separated (e.g. Mushrooms, Loud noises)"
+                placeholder="e.g. Mushrooms, Loud noises"
                 value={form.dislikes?.join(", ") || ""}
                 onChange={e => setForm({ ...form, dislikes: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
               />
@@ -290,9 +335,9 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
 
             {/* Hobbies */}
             <div className="space-y-1">
-              <Label>Hobbies & Interests</Label>
+              <Label>Hobbies & Interests <span className="text-xs text-muted-foreground font-normal">(comma separated)</span></Label>
               <Input
-                placeholder="Comma separated (e.g. Reading, Swimming, Lego)"
+                placeholder="e.g. Reading, Swimming, Lego"
                 value={form.hobbies?.join(", ") || ""}
                 onChange={e => setForm({ ...form, hobbies: e.target.value.split(",").map(s => s.trim()).filter(Boolean) })}
               />
