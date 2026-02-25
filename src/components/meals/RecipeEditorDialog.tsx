@@ -144,17 +144,8 @@ const RecipeEditorDialog = ({ open, onOpenChange, recipe, onSave, title = "Edit 
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Difficulty</Label>
-              <Select value={form.difficulty || 'easy'} onValueChange={v => updateField('difficulty', v as RecipeDifficulty)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="easy">Easy</SelectItem>
-                  <SelectItem value="medium">Medium</SelectItem>
-                  <SelectItem value="hard">Hard</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+
+
             <div className="space-y-1">
               <Label className="text-xs">Prep (mins)</Label>
               <Input type="number" className="h-9" value={form.prepTime || 0} onChange={e => updateField('prepTime', parseInt(e.target.value) || 0)} />
