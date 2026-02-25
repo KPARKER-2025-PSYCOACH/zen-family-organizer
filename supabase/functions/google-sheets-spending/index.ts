@@ -10,160 +10,170 @@ const corsHeaders = {
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
 const CATEGORIES = [
-  "Rent/Mortgage","Council Tax","Gas & Electricity","Water","Internet & TV","Mobile Phone",
-  "Groceries","Household Supplies","Fuel/Commuting","Car Insurance/Tax",
-  "Life & Home Insurance","Childcare/Nursery Fees","School Clubs & Sports Teams",
-  "Music & Art Lessons","Tutoring/Learning Apps","School Uniforms & Gear",
-  "School Lunches/Trips","Nappies/Baby Essentials","Kids' Clothes & Shoes",
-  "Toys & Books","Kids' Pocket Money","Birthday Party Gifts (for others)",
-  "Dining & Takeaways","Streaming Subscriptions","Family Outings",
-  "Personal Care/Haircuts","Gym/Fitness","Medical/Dental",
-  "Emergency Fund Contribution","Holiday/Vacation Savings","Christmas/Birthday Pot",
-  "Debt/Loan Repayments"
+  "Bills","Groceries","Car/ Transport Costs","Insurance/Tax","Childcare/Nursery Fees",
+  "Clubs/ Sports","Clothes & Shoes","Dining & Takeaways","Subscriptions/Memberships",
+  "Outings/ Leisure","Savings Contribution","Holiday/Vacation","Debt/Loan Repayments","Other"
 ];
+
+const headerFormat = {
+  backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 },
+  textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+};
+
+const currencyFormat = { numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } };
 
 function buildMonthSheet(monthName: string, monthIndex: number): any {
   const rows: any[][] = [];
-  
-  // Header row
-  rows.push([
-    { userEnteredValue: { stringValue: "Category" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Item Name" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Budgeted Amount" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Actual Amount" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Difference" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Payment Method" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Status" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Date" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-    { userEnteredValue: { stringValue: "Description" }, userEnteredFormat: { backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-  ]);
+  const DATA_ROWS = 40; // blank rows for data entry per category
 
-  // Category rows with formulas
+  // Each category gets 3 columns: Date, Description, Amount
+  // Header row with category names spanning 3 cols each
+  const catHeaderRow: any[] = [];
+  for (const cat of CATEGORIES) {
+    catHeaderRow.push(
+      { userEnteredValue: { stringValue: cat }, userEnteredFormat: { ...headerFormat, horizontalAlignment: "CENTER" } },
+      { userEnteredValue: { stringValue: "" }, userEnteredFormat: headerFormat },
+      { userEnteredValue: { stringValue: "" }, userEnteredFormat: headerFormat },
+    );
+  }
+  rows.push(catHeaderRow);
+
+  // Sub-header row: Date | Description | Amount repeated
+  const subHeaderRow: any[] = [];
   for (let i = 0; i < CATEGORIES.length; i++) {
-    const rowNum = i + 2;
-    rows.push([
-      { userEnteredValue: { stringValue: CATEGORIES[i] } },
-      { userEnteredValue: { stringValue: CATEGORIES[i] } },
-      { userEnteredValue: { numberValue: 0 }, userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } } },
-      { userEnteredValue: { numberValue: 0 }, userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } } },
-      { userEnteredValue: { formulaValue: `=C${rowNum}-D${rowNum}` }, userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } } },
-      { userEnteredValue: { stringValue: "" } },
-      { userEnteredValue: { stringValue: "Pending" } },
-      { userEnteredValue: { stringValue: "" } },
-      { userEnteredValue: { stringValue: "" } },
-    ]);
+    subHeaderRow.push(
+      { userEnteredValue: { stringValue: "Date" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+      { userEnteredValue: { stringValue: "Description" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+      { userEnteredValue: { stringValue: "Amount (£)" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+    );
+  }
+  rows.push(subHeaderRow);
+
+  // Empty data rows
+  for (let r = 0; r < DATA_ROWS; r++) {
+    const row: any[] = [];
+    for (let i = 0; i < CATEGORIES.length; i++) {
+      row.push(
+        { userEnteredValue: { stringValue: "" } },
+        { userEnteredValue: { stringValue: "" } },
+        { userEnteredValue: { numberValue: 0 }, userEnteredFormat: currencyFormat },
+      );
+    }
+    rows.push(row);
   }
 
   // Totals row
-  const totalRow = CATEGORIES.length + 2;
-  rows.push([
-    { userEnteredValue: { stringValue: "TOTAL MONTHLY SPEND" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { formulaValue: `=SUM(C2:C${totalRow - 1})` }, userEnteredFormat: { textFormat: { bold: true }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { formulaValue: `=SUM(D2:D${totalRow - 1})` }, userEnteredFormat: { textFormat: { bold: true }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { formulaValue: `=C${totalRow}-D${totalRow}` }, userEnteredFormat: { textFormat: { bold: true }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-  ]);
+  const totalRowNum = DATA_ROWS + 3; // 1-indexed: header=1, subheader=2, data starts at 3
+  const totalRow: any[] = [];
+  for (let i = 0; i < CATEGORIES.length; i++) {
+    const amountCol = String.fromCharCode(65 + i * 3 + 2); // C, F, I, ...
+    // Use INDIRECT for cols beyond Z
+    const colRef = getColLetter(i * 3 + 2);
+    totalRow.push(
+      { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+      { userEnteredValue: { stringValue: "" }, userEnteredFormat: { backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+      { userEnteredValue: { formulaValue: `=SUM(${colRef}3:${colRef}${totalRowNum - 1})` }, userEnteredFormat: { ...currencyFormat, textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+    );
+  }
+  rows.push(totalRow);
+
+  // Merge cells for category headers
+  const merges = CATEGORIES.map((_, i) => ({
+    sheetId: monthIndex + 2, // offset by 2 for overview + dashboard sheets
+    startRowIndex: 0,
+    endRowIndex: 1,
+    startColumnIndex: i * 3,
+    endColumnIndex: i * 3 + 3,
+  }));
 
   return {
     properties: {
       title: monthName,
-      gridProperties: { frozenRowCount: 1 },
-      sheetId: monthIndex,
+      gridProperties: { frozenRowCount: 2, columnCount: CATEGORIES.length * 3 },
+      sheetId: monthIndex + 2,
     },
     data: [{ startRow: 0, startColumn: 0, rowData: rows.map(r => ({ values: r })) }],
-    conditionalFormats: [
-      {
-        ranges: [{ sheetId: monthIndex, startRowIndex: 1, endRowIndex: totalRow, startColumnIndex: 4, endColumnIndex: 5 }],
-        booleanRule: {
-          condition: { type: "NUMBER_LESS", values: [{ userEnteredValue: "0" }] },
-          format: { textFormat: { foregroundColor: { red: 0.8, green: 0.2, blue: 0.2 } }, backgroundColor: { red: 1, green: 0.9, blue: 0.9 } }
-        }
-      },
-      {
-        ranges: [{ sheetId: monthIndex, startRowIndex: 1, endRowIndex: totalRow, startColumnIndex: 4, endColumnIndex: 5 }],
-        booleanRule: {
-          condition: { type: "NUMBER_GREATER", values: [{ userEnteredValue: "0" }] },
-          format: { textFormat: { foregroundColor: { red: 0.2, green: 0.6, blue: 0.2 } }, backgroundColor: { red: 0.9, green: 1, blue: 0.9 } }
-        }
-      }
-    ]
+    merges,
   };
 }
 
-function buildYearlySummarySheet(year: number): any {
+function getColLetter(index: number): string {
+  let result = "";
+  let i = index;
+  while (i >= 0) {
+    result = String.fromCharCode(65 + (i % 26)) + result;
+    i = Math.floor(i / 26) - 1;
+  }
+  return result;
+}
+
+function buildAnnualOverviewSheet(year: number): any {
   const rows: any[][] = [];
-  
+
   // Title
   rows.push([
-    { userEnteredValue: { stringValue: `${year} Annual Summary` }, userEnteredFormat: { textFormat: { bold: true, fontSize: 14 }, backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 } } }
+    { userEnteredValue: { stringValue: `Annual Family Spending Overview` }, userEnteredFormat: { textFormat: { bold: true, fontSize: 14 }, ...headerFormat } },
   ]);
   rows.push([]);
-  
+
   // Headers
   rows.push([
     { userEnteredValue: { stringValue: "Category" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.85, green: 0.82, blue: 0.78 } } },
-    ...MONTHS.map(m => ({ userEnteredValue: { stringValue: m.substring(0, 3) }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.85, green: 0.82, blue: 0.78 } } })),
-    { userEnteredValue: { stringValue: "YTD Total" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
+    { userEnteredValue: { stringValue: "Annual Spend (£)" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.85, green: 0.82, blue: 0.78 } } },
+    { userEnteredValue: { stringValue: "Average per Month (£)" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.85, green: 0.82, blue: 0.78 } } },
   ]);
 
-  // Category rows with cross-sheet SUMIF references
+  // Category rows pulling from dashboard sheet
   for (let i = 0; i < CATEGORIES.length; i++) {
-    const catName = CATEGORIES[i];
     const rowNum = i + 4;
-    const monthCells = MONTHS.map((m, mi) => ({
-      userEnteredValue: { formulaValue: `=SUMIF('${m}'!A:A,"${catName}",'${m}'!D:D)` },
-      userEnteredFormat: { numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } }
-    }));
     rows.push([
-      { userEnteredValue: { stringValue: catName } },
-      ...monthCells,
-      { userEnteredValue: { formulaValue: `=SUM(B${rowNum}:M${rowNum})` }, userEnteredFormat: { textFormat: { bold: true }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } } },
+      { userEnteredValue: { stringValue: CATEGORIES[i] } },
+      { userEnteredValue: { formulaValue: `='Spending Dashboard'!B${i + 3}` }, userEnteredFormat: currencyFormat },
+      { userEnteredValue: { formulaValue: `=B${rowNum}/12` }, userEnteredFormat: currencyFormat },
     ]);
   }
 
-  // Monthly totals row
-  const totalRowNum = CATEGORIES.length + 4;
-  const monthTotalCells = MONTHS.map((m, mi) => {
-    const col = String.fromCharCode(66 + mi); // B=66
-    return {
-      userEnteredValue: { formulaValue: `=SUM(${col}4:${col}${totalRowNum - 1})` },
-      userEnteredFormat: { textFormat: { bold: true }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } }
-    };
-  });
-
+  // Total row
+  const totalRow = CATEGORIES.length + 4;
   rows.push([
-    { userEnteredValue: { stringValue: "MONTHLY TOTALS" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
-    ...monthTotalCells,
-    { userEnteredValue: { formulaValue: `=SUM(B${totalRowNum}:M${totalRowNum})` }, userEnteredFormat: { textFormat: { bold: true, fontSize: 12 }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" }, backgroundColor: { red: 0.24, green: 0.42, blue: 0.41 }, textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } } } },
-  ]);
-
-  // YTD running total row
-  rows.push([]);
-  rows.push([
-    { userEnteredValue: { stringValue: "YTD Running Total" }, userEnteredFormat: { textFormat: { bold: true, fontSize: 12 } } },
-    ...MONTHS.map((m, mi) => {
-      const cols = [];
-      for (let j = 0; j <= mi; j++) {
-        cols.push(`${String.fromCharCode(66 + j)}${totalRowNum}`);
-      }
-      return {
-        userEnteredValue: { formulaValue: `=${cols.join("+")}` },
-        userEnteredFormat: { textFormat: { bold: true }, numberFormat: { type: "CURRENCY", pattern: "£#,##0.00" } }
-      };
-    }),
-    { userEnteredValue: { stringValue: "" } },
+    { userEnteredValue: { stringValue: "TOTAL" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+    { userEnteredValue: { formulaValue: `=SUM(B4:B${totalRow - 1})` }, userEnteredFormat: { ...currencyFormat, textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
+    { userEnteredValue: { formulaValue: `=SUM(C4:C${totalRow - 1})` }, userEnteredFormat: { ...currencyFormat, textFormat: { bold: true }, backgroundColor: { red: 0.9, green: 0.88, blue: 0.84 } } },
   ]);
 
   return {
-    properties: {
-      title: "Annual Summary",
-      gridProperties: { frozenRowCount: 3 },
-      sheetId: 12,
-    },
+    properties: { title: "Annual Overview", gridProperties: { frozenRowCount: 3 }, sheetId: 0 },
+    data: [{ startRow: 0, startColumn: 0, rowData: rows.map(r => ({ values: r })) }],
+  };
+}
+
+function buildDashboardSheet(): any {
+  const rows: any[][] = [];
+
+  rows.push([
+    { userEnteredValue: { stringValue: "Spending Dashboard" }, userEnteredFormat: { textFormat: { bold: true, fontSize: 14 }, ...headerFormat } },
+  ]);
+  rows.push([
+    { userEnteredValue: { stringValue: "Category" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.85, green: 0.82, blue: 0.78 } } },
+    { userEnteredValue: { stringValue: "Annual Spend (£)" }, userEnteredFormat: { textFormat: { bold: true }, backgroundColor: { red: 0.85, green: 0.82, blue: 0.78 } } },
+  ]);
+
+  // Each category: sum from all 12 monthly sheets
+  for (let i = 0; i < CATEGORIES.length; i++) {
+    const catIndex = i;
+    const amountColIndex = catIndex * 3 + 2; // 0-indexed column for Amount
+    const colLetter = getColLetter(amountColIndex);
+    const totalRowNum = 43; // row 43 is the totals row in monthly sheets
+
+    const monthRefs = MONTHS.map(m => `'${m}'!${colLetter}${totalRowNum}`);
+    rows.push([
+      { userEnteredValue: { stringValue: CATEGORIES[i] } },
+      { userEnteredValue: { formulaValue: `=${monthRefs.join("+")}` }, userEnteredFormat: currencyFormat },
+    ]);
+  }
+
+  return {
+    properties: { title: "Spending Dashboard", gridProperties: { frozenRowCount: 2 }, sheetId: 1 },
     data: [{ startRow: 0, startColumn: 0, rowData: rows.map(r => ({ values: r })) }],
   };
 }
@@ -229,7 +239,6 @@ serve(async (req) => {
     }
 
     if (action === "create_spreadsheet") {
-      // Get access token from calendar_connections (reuses Google OAuth)
       const serviceClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -250,7 +259,6 @@ serve(async (req) => {
 
       let accessToken = conn.access_token;
 
-      // Refresh if expired
       if (conn.token_expires_at && new Date(conn.token_expires_at) < new Date()) {
         const clientId = Deno.env.get("OAuth_Client_ID");
         const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
@@ -274,14 +282,15 @@ serve(async (req) => {
         }
       }
 
-      // Build sheets: 12 months + annual summary
+      // Build sheets matching template: Annual Overview, Dashboard, 12 months
       const sheets = [
+        buildAnnualOverviewSheet(targetYear),
+        buildDashboardSheet(),
         ...MONTHS.map((m, i) => buildMonthSheet(m, i)),
-        buildYearlySummarySheet(targetYear),
       ];
 
       const spreadsheetBody = {
-        properties: { title: `Family Budget ${targetYear}` },
+        properties: { title: `Spending Tracker ${targetYear}` },
         sheets,
       };
 
@@ -304,12 +313,11 @@ serve(async (req) => {
 
       const spreadsheet = await createRes.json();
 
-      // Save connection
       await serviceClient.from("sheets_connections").upsert({
         user_id: user.id,
         spreadsheet_id: spreadsheet.spreadsheetId,
         spreadsheet_url: spreadsheet.spreadsheetUrl,
-        title: `Family Budget ${targetYear}`,
+        title: `Spending Tracker ${targetYear}`,
         year: targetYear,
       }, { onConflict: "user_id,year", ignoreDuplicates: false });
 
