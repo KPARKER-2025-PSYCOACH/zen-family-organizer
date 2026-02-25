@@ -6,15 +6,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, GripVertical, Trash2, Eye, Upload, RefreshCw, Pencil, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2 } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
 import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
-import type { Recipe, MealPlan, GroceryItem, DietaryRequirement, CuisineType, RecipeDifficulty } from "@/types";
+import type { Recipe, GroceryItem, DietaryRequirement, CuisineType, RecipeDifficulty } from "@/types";
+
+// ============ Constants ============
 
 const DIETARY_REQUIREMENTS: { value: DietaryRequirement; label: string }[] = [
   { value: 'vegetarian', label: 'Vegetarian' },
@@ -60,10 +63,27 @@ const DIFFICULTY_INFO: Record<RecipeDifficulty, { label: string; color: string; 
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+type MealType = 'breakfast' | 'lunch' | 'dinner';
+
+const MEAL_TYPE_INFO: Record<MealType, { label: string; icon: string }> = {
+  breakfast: { label: 'Breakfast', icon: '🌅' },
+  lunch: { label: 'Lunch', icon: '☀️' },
+  dinner: { label: 'Dinner', icon: '🌙' },
+};
+
+interface PlannedMeal {
+  id: string;
+  mealType: MealType;
+  name: string;
+  recipe?: Recipe;
+}
+
+// ============ Main Component ============
+
 const MealsPage = () => {
   const { members: familyMembers } = useFamilyMembers();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [mealPlan, setMealPlan] = useState<Record<string, Recipe | null>>({});
+  const [mealPlan, setMealPlan] = useState<Record<string, PlannedMeal[]>>({});
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
@@ -72,57 +92,61 @@ const MealsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [viewingRecipe, setViewingRecipe] = useState<Recipe | null>(null);
   const [editingDay, setEditingDay] = useState<string | null>(null);
+  const [editingMealType, setEditingMealType] = useState<MealType>('dinner');
   const [savedDietaryReqs, setSavedDietaryReqs] = useState<DietaryRequirement[]>(() => {
-    try {
-      const stored = localStorage.getItem('parentassist_dietary_reqs');
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('parentassist_dietary_reqs') || '[]'); } catch { return []; }
   });
   const [customDietaryReqs, setCustomDietaryReqs] = useState<{ value: string; label: string }[]>(() => {
-    try {
-      const stored = localStorage.getItem('parentassist_custom_dietary');
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
+    try { return JSON.parse(localStorage.getItem('parentassist_custom_dietary') || '[]'); } catch { return []; }
   });
   const [newCustomReq, setNewCustomReq] = useState('');
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [searchOffset, setSearchOffset] = useState(0);
-  // Recipe editor state
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorRecipe, setEditorRecipe] = useState<Partial<Recipe> | null>(null);
   const [editorTitle, setEditorTitle] = useState('Add Recipe');
   const [editingRecipeId, setEditingRecipeId] = useState<string | null>(null);
-  // Recipe scan state
   const recipeFileInputRef = useRef<HTMLInputElement>(null);
   const [scanningRecipe, setScanningRecipe] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('parentassist_dietary_reqs', JSON.stringify(savedDietaryReqs));
-  }, [savedDietaryReqs]);
+  // Meal type visibility toggles
+  const [showBreakfast, setShowBreakfast] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('parentassist_show_breakfast') || 'false'); } catch { return false; }
+  });
+  const [showLunch, setShowLunch] = useState<boolean>(() => {
+    try { return JSON.parse(localStorage.getItem('parentassist_show_lunch') || 'false'); } catch { return false; }
+  });
+  const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem('parentassist_custom_dietary', JSON.stringify(customDietaryReqs));
-  }, [customDietaryReqs]);
+  // Quick-add text input in dialog
+  const [quickMealName, setQuickMealName] = useState('');
+
+  useEffect(() => { localStorage.setItem('parentassist_dietary_reqs', JSON.stringify(savedDietaryReqs)); }, [savedDietaryReqs]);
+  useEffect(() => { localStorage.setItem('parentassist_custom_dietary', JSON.stringify(customDietaryReqs)); }, [customDietaryReqs]);
+  useEffect(() => { localStorage.setItem('parentassist_show_breakfast', JSON.stringify(showBreakfast)); }, [showBreakfast]);
+  useEffect(() => { localStorage.setItem('parentassist_show_lunch', JSON.stringify(showLunch)); }, [showLunch]);
 
   const toggleSavedDietaryReq = (req: DietaryRequirement) => {
-    setSavedDietaryReqs(prev =>
-      prev.includes(req) ? prev.filter(r => r !== req) : [...prev, req]
-    );
+    setSavedDietaryReqs(prev => prev.includes(req) ? prev.filter(r => r !== req) : [...prev, req]);
   };
 
+  const visibleMealTypes: MealType[] = [
+    ...(showBreakfast ? ['breakfast' as MealType] : []),
+    ...(showLunch ? ['lunch' as MealType] : []),
+    'dinner',
+  ];
+
+  // ============ Recipe search ============
 
   const fetchRecipes = async (offset: number, append: boolean) => {
     if (append) setIsLoadingMore(true); else setIsSearching(true);
-
     try {
-      // Combine saved dietary reqs with family member dietary reqs
       const familyDietaryReqs = [...new Set(familyMembers.flatMap(m => m.dietary_requirements))];
       const allDietaryReqs = [
         ...savedDietaryReqs.map(r => DIETARY_REQUIREMENTS.find(d => d.value === r)?.label || r),
         ...familyDietaryReqs,
       ].filter((v, i, a) => a.indexOf(v) === i);
 
-      // Build family context for AI
       const familyContext = familyMembers.length > 0
         ? `Family members: ${familyMembers.map(m => {
             const age = calculateAge(m.birth_date);
@@ -131,52 +155,42 @@ const MealsPage = () => {
         : "";
 
       const { data, error } = await supabase.functions.invoke('meal-search', {
-        body: {
-          cuisine: selectedCuisine,
-          difficulty: selectedDifficulty,
-          query: familyContext ? `${searchQuery}. ${familyContext}` : searchQuery,
-          dietaryRequirements: allDietaryReqs,
-          offset,
-        },
+        body: { cuisine: selectedCuisine, difficulty: selectedDifficulty, query: familyContext ? `${searchQuery}. ${familyContext}` : searchQuery, dietaryRequirements: allDietaryReqs, offset },
       });
 
       if (error) throw error;
-      if (data?.error) {
-        toast.error(data.error);
-        return;
-      }
+      if (data?.error) { toast.error(data.error); return; }
 
-      const newRecipes: Recipe[] = (data?.recipes || []).map((r: any, i: number) => ({
-        ...r,
-        id: r.id || `ai-${Date.now()}-${i}`,
-      }));
-
-      if (append) {
-        setSearchResults(prev => [...prev, ...newRecipes]);
-      } else {
-        setSearchResults(newRecipes);
-      }
+      const newRecipes: Recipe[] = (data?.recipes || []).map((r: any, i: number) => ({ ...r, id: r.id || `ai-${Date.now()}-${i}` }));
+      if (append) { setSearchResults(prev => [...prev, ...newRecipes]); } else { setSearchResults(newRecipes); }
       setSearchOffset(offset + 10);
     } catch (e: any) {
       console.error('Meal search error:', e);
       toast.error('Failed to search for recipes. Please try again.');
-    } finally {
-      setIsSearching(false);
-      setIsLoadingMore(false);
-    }
+    } finally { setIsSearching(false); setIsLoadingMore(false); }
   };
 
-  const handleSearchRecipes = () => {
-    setSearchOffset(0);
-    fetchRecipes(0, false);
+  const handleSearchRecipes = () => { setSearchOffset(0); fetchRecipes(0, false); };
+  const handleLoadMore = () => { fetchRecipes(searchOffset, true); };
+
+  // ============ Meal plan actions ============
+
+  const addMealToPlan = (day: string, mealType: MealType, name: string, recipe?: Recipe) => {
+    const meal: PlannedMeal = { id: `${Date.now()}-${Math.random()}`, mealType, name, recipe };
+    setMealPlan(prev => ({ ...prev, [day]: [...(prev[day] || []), meal] }));
   };
 
-  const handleLoadMore = () => {
-    fetchRecipes(searchOffset, true);
+  const removeMealFromPlan = (day: string, mealId: string) => {
+    setMealPlan(prev => {
+      const updated = (prev[day] || []).filter(m => m.id !== mealId);
+      const newPlan = { ...prev };
+      if (updated.length === 0) delete newPlan[day]; else newPlan[day] = updated;
+      return newPlan;
+    });
   };
 
   const handleAddToDay = (recipe: Recipe, day: string) => {
-    setMealPlan({ ...mealPlan, [day]: recipe });
+    addMealToPlan(day, 'dinner', recipe.title, recipe);
   };
 
   const handleSaveRecipe = (recipe: Recipe) => {
@@ -185,39 +199,29 @@ const MealsPage = () => {
     }
   };
 
-  const handleRemoveFromDay = (day: string) => {
-    const newPlan = { ...mealPlan };
-    delete newPlan[day];
-    setMealPlan(newPlan);
+  const getMealsForDayType = (day: string, mealType: MealType) => {
+    return (mealPlan[day] || []).filter(m => m.mealType === mealType);
   };
 
+  // ============ Grocery list ============
+
   const handleGenerateGroceryList = () => {
-    const plannedRecipes = Object.values(mealPlan).filter(Boolean) as Recipe[];
+    const allMeals = Object.values(mealPlan).flat();
+    const plannedRecipes = allMeals.filter(m => m.recipe).map(m => m.recipe!);
     const allIngredients: GroceryItem[] = [];
-    
     plannedRecipes.forEach(recipe => {
       recipe.ingredients.forEach(ing => {
-        allIngredients.push({
-          id: `${recipe.id}-${ing.item}`,
-          item: ing.item,
-          amount: ing.amount,
-          unit: ing.unit,
-          category: 'other', // TODO: categorize properly
-          checked: false,
-        });
+        allIngredients.push({ id: `${recipe.id}-${ing.item}`, item: ing.item, amount: ing.amount, unit: ing.unit, category: 'other', checked: false });
       });
     });
-    
     setGroceryList(allIngredients);
   };
 
   const handleToggleGroceryItem = (id: string) => {
-    setGroceryList(list => 
-      list.map(item => 
-        item.id === id ? { ...item, checked: !item.checked } : item
-      )
-    );
+    setGroceryList(list => list.map(item => item.id === id ? { ...item, checked: !item.checked } : item));
   };
+
+  // ============ Custom dietary ============
 
   const handleAddCustomReq = () => {
     const trimmed = newCustomReq.trim();
@@ -234,6 +238,8 @@ const MealsPage = () => {
     setSavedDietaryReqs(prev => prev.filter(r => r !== value));
   };
 
+  // ============ Recipe scanning ============
+
   const handleScanRecipeFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -244,26 +250,16 @@ const MealsPage = () => {
         const buffer = await file.arrayBuffer();
         const bytes = new Uint8Array(buffer);
         const textDecoder = new TextDecoder("utf-8", { fatal: false });
-        fileContent = textDecoder.decode(bytes);
-        fileContent = fileContent.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, " ").trim();
-      } else {
-        fileContent = await file.text();
-      }
+        fileContent = textDecoder.decode(bytes).replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, " ").trim();
+      } else { fileContent = await file.text(); }
       if (fileContent.length > 10000) fileContent = fileContent.substring(0, 10000);
-      if (fileContent.length < 10) {
-        toast.error("Could not read file content");
-        return;
-      }
+      if (fileContent.length < 10) { toast.error("Could not read file content"); return; }
 
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-      const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/scan-recipe`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ fileContent, fileName: file.name }),
-        }
-      );
+      const res = await fetch(`https://${projectId}.supabase.co/functions/v1/scan-recipe`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileContent, fileName: file.name }),
+      });
       const data = await res.json();
       if (data.success && data.recipe) {
         setEditorRecipe({ ...data.recipe, id: `scan-${Date.now()}` });
@@ -271,106 +267,76 @@ const MealsPage = () => {
         setEditingRecipeId(null);
         setEditorOpen(true);
         toast.success('Recipe parsed! Review and save below.');
-      } else {
-        toast.error(data.error || 'Failed to parse recipe');
-      }
-    } catch (err) {
-      console.error('Recipe scan error:', err);
-      toast.error('Failed to scan recipe');
-    } finally {
-      setScanningRecipe(false);
-      if (recipeFileInputRef.current) recipeFileInputRef.current.value = "";
-    }
+      } else { toast.error(data.error || 'Failed to parse recipe'); }
+    } catch (err) { console.error('Recipe scan error:', err); toast.error('Failed to scan recipe'); }
+    finally { setScanningRecipe(false); if (recipeFileInputRef.current) recipeFileInputRef.current.value = ""; }
   };
 
-  const handleOpenManualEntry = () => {
-    setEditorRecipe(null);
-    setEditorTitle('Add Recipe Manually');
-    setEditingRecipeId(null);
-    setEditorOpen(true);
-  };
+  const handleOpenManualEntry = () => { setEditorRecipe(null); setEditorTitle('Add Recipe Manually'); setEditingRecipeId(null); setEditorOpen(true); };
 
-  const handleEditRecipe = (recipe: Recipe) => {
-    setEditorRecipe(recipe);
-    setEditorTitle('Edit Recipe');
-    setEditingRecipeId(recipe.id);
-    setEditorOpen(true);
-  };
+  const handleEditRecipe = (recipe: Recipe) => { setEditorRecipe(recipe); setEditorTitle('Edit Recipe'); setEditingRecipeId(recipe.id); setEditorOpen(true); };
 
   const handleEditorSave = (recipe: Recipe) => {
     if (editingRecipeId) {
       setRecipes(prev => prev.map(r => r.id === editingRecipeId ? recipe : r));
-      // Also update meal plan if this recipe is planned
+      // Update meal plan references
       setMealPlan(prev => {
         const updated = { ...prev };
         for (const day of Object.keys(updated)) {
-          if (updated[day]?.id === editingRecipeId) {
-            updated[day] = recipe;
-          }
+          updated[day] = updated[day].map(m => m.recipe?.id === editingRecipeId ? { ...m, name: recipe.title, recipe } : m);
         }
         return updated;
       });
       toast.success('Recipe updated!');
-    } else {
-      setRecipes(prev => [...prev, recipe]);
-      toast.success('Recipe saved!');
-    }
+    } else { setRecipes(prev => [...prev, recipe]); toast.success('Recipe saved!'); }
   };
 
   const handleExportGroceryList = () => {
-    // TODO: Generate PDF
-    const text = groceryList
-      .filter(item => !item.checked)
-      .map(item => `- ${item.amount} ${item.unit} ${item.item}`)
-      .join('\n');
-    
+    const text = groceryList.filter(item => !item.checked).map(item => `- ${item.amount} ${item.unit} ${item.item}`).join('\n');
     const blob = new Blob([`Shopping List\n\n${text}`], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'shopping-list.txt';
-    a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'shopping-list.txt'; a.click();
   };
 
   const handleShareGroceryList = async () => {
-    const text = groceryList
-      .filter(item => !item.checked)
-      .map(item => `- ${item.amount} ${item.unit} ${item.item}`)
-      .join('\n');
-    
-    if (navigator.share) {
-      await navigator.share({
-        title: 'Shopping List',
-        text: text,
-      });
-    } else {
-      await navigator.clipboard.writeText(text);
-      alert('List copied to clipboard!');
-    }
+    const text = groceryList.filter(item => !item.checked).map(item => `- ${item.amount} ${item.unit} ${item.item}`).join('\n');
+    if (navigator.share) { await navigator.share({ title: 'Shopping List', text }); }
+    else { await navigator.clipboard.writeText(text); alert('List copied to clipboard!'); }
   };
+
+  const openDayDialog = (day: string, mealType: MealType) => {
+    setEditingDay(day);
+    setEditingMealType(mealType);
+    setQuickMealName('');
+  };
+
+  const handleQuickAdd = () => {
+    if (!quickMealName.trim() || !editingDay) return;
+    addMealToPlan(editingDay, editingMealType, quickMealName.trim());
+    setQuickMealName('');
+    toast.success('Meal added!');
+  };
+
+  const handleSelectRecipeForDay = (recipe: Recipe) => {
+    if (!editingDay) return;
+    addMealToPlan(editingDay, editingMealType, recipe.title, recipe);
+    setEditingDay(null);
+  };
+
+  const totalPlannedMeals = Object.values(mealPlan).flat().length;
+
+  // ============ Render ============
 
   return (
     <div className="min-h-screen bg-background">
-      <PageHeader 
-        title="Meal Planner" 
-        subtitle="Plan your family's meals for the week"
-      />
+      <PageHeader title="Meal Planner" subtitle="Plan your family's meals for the week" />
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="planner" className="space-y-6">
           <TabsList className="grid w-full max-w-md grid-cols-3">
-            <TabsTrigger value="search">
-              <Sparkles className="h-4 w-4 mr-1 hidden sm:inline" />
-              Find Meals
-            </TabsTrigger>
-            <TabsTrigger value="planner">
-              <Calendar className="h-4 w-4 mr-1 hidden sm:inline" />
-              Planner
-            </TabsTrigger>
-            <TabsTrigger value="recipes">
-              <BookOpen className="h-4 w-4 mr-1 hidden sm:inline" />
-              Recipes
-            </TabsTrigger>
+            <TabsTrigger value="search"><Sparkles className="h-4 w-4 mr-1 hidden sm:inline" />Find Meals</TabsTrigger>
+            <TabsTrigger value="planner"><Calendar className="h-4 w-4 mr-1 hidden sm:inline" />Planner</TabsTrigger>
+            <TabsTrigger value="recipes"><BookOpen className="h-4 w-4 mr-1 hidden sm:inline" />Recipes</TabsTrigger>
           </TabsList>
 
           {/* Family dietary info banner */}
@@ -388,61 +354,32 @@ const MealsPage = () => {
             </Card>
           )}
 
-          {/* Search Tab */}
+          {/* ============ Search Tab ============ */}
           <TabsContent value="search" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  AI Meal Search
-                </CardTitle>
-                <CardDescription>
-                  Find recipes that work for your whole family
-                </CardDescription>
+                <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" />AI Meal Search</CardTitle>
+                <CardDescription>Find recipes that work for your whole family</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Persistent Dietary Requirements */}
                 <div className="space-y-2">
                   <Label>Dietary Requirements <span className="text-xs text-muted-foreground">(saved across searches)</span></Label>
                   <div className="flex flex-wrap gap-2">
                     {DIETARY_REQUIREMENTS.map(req => (
-                      <Badge
-                        key={req.value}
-                        variant={savedDietaryReqs.includes(req.value) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => toggleSavedDietaryReq(req.value)}
-                      >
-                        {req.label}
-                        {savedDietaryReqs.includes(req.value) && " ✕"}
+                      <Badge key={req.value} variant={savedDietaryReqs.includes(req.value) ? "default" : "outline"} className="cursor-pointer" onClick={() => toggleSavedDietaryReq(req.value)}>
+                        {req.label}{savedDietaryReqs.includes(req.value) && " ✕"}
                       </Badge>
                     ))}
                     {customDietaryReqs.map(req => (
-                      <Badge
-                        key={req.value}
-                        variant={savedDietaryReqs.includes(req.value as DietaryRequirement) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => toggleSavedDietaryReq(req.value as DietaryRequirement)}
-                      >
-                        {req.label}
-                        {savedDietaryReqs.includes(req.value as DietaryRequirement) && " ✕"}
-                        <button
-                          className="ml-1 text-xs opacity-60 hover:opacity-100"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveCustomReq(req.value); }}
-                        >×</button>
+                      <Badge key={req.value} variant={savedDietaryReqs.includes(req.value as DietaryRequirement) ? "default" : "outline"} className="cursor-pointer" onClick={() => toggleSavedDietaryReq(req.value as DietaryRequirement)}>
+                        {req.label}{savedDietaryReqs.includes(req.value as DietaryRequirement) && " ✕"}
+                        <button className="ml-1 text-xs opacity-60 hover:opacity-100" onClick={(e) => { e.stopPropagation(); handleRemoveCustomReq(req.value); }}>×</button>
                       </Badge>
                     ))}
                   </div>
                   <div className="flex gap-2 items-center">
-                    <Input
-                      className="h-8 text-sm max-w-[200px]"
-                      placeholder="Add custom requirement..."
-                      value={newCustomReq}
-                      onChange={e => setNewCustomReq(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleAddCustomReq()}
-                    />
-                    <Button type="button" variant="outline" size="sm" className="h-8" onClick={handleAddCustomReq} disabled={!newCustomReq.trim()}>
-                      <Plus className="h-3 w-3 mr-1" /> Add
-                    </Button>
+                    <Input className="h-8 text-sm max-w-[200px]" placeholder="Add custom requirement..." value={newCustomReq} onChange={e => setNewCustomReq(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddCustomReq()} />
+                    <Button type="button" variant="outline" size="sm" className="h-8" onClick={handleAddCustomReq} disabled={!newCustomReq.trim()}><Plus className="h-3 w-3 mr-1" /> Add</Button>
                   </div>
                 </div>
 
@@ -450,26 +387,17 @@ const MealsPage = () => {
                   <div className="space-y-2">
                     <Label>Cuisine Type</Label>
                     <Select value={selectedCuisine} onValueChange={(v) => setSelectedCuisine(v as CuisineType | 'any')}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any cuisine" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Any cuisine" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="any">Any cuisine</SelectItem>
-                        {CUISINE_TYPES.map(cuisine => (
-                          <SelectItem key={cuisine.value} value={cuisine.value}>
-                            {cuisine.label}
-                          </SelectItem>
-                        ))}
+                        {CUISINE_TYPES.map(cuisine => (<SelectItem key={cuisine.value} value={cuisine.value}>{cuisine.label}</SelectItem>))}
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label>Difficulty</Label>
                     <Select value={selectedDifficulty} onValueChange={(v) => setSelectedDifficulty(v as RecipeDifficulty | 'any')}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Any difficulty" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Any difficulty" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="any">Any difficulty</SelectItem>
                         <SelectItem value="easy">Easy (Quick & Simple)</SelectItem>
@@ -478,35 +406,18 @@ const MealsPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-
                   <div className="space-y-2">
                     <Label>Special Request</Label>
-                    <Input 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="e.g. kid-friendly, under 30 mins"
-                    />
+                    <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g. kid-friendly, under 30 mins" />
                   </div>
                 </div>
 
-                <Button 
-                  onClick={handleSearchRecipes}
-                  disabled={isSearching}
-                  className="w-full gap-2"
-                >
-                  {isSearching ? (
-                    <>Searching...</>
-                  ) : (
-                    <>
-                      <Search className="h-4 w-4" />
-                      Find Recipes
-                    </>
-                  )}
+                <Button onClick={handleSearchRecipes} disabled={isSearching} className="w-full gap-2">
+                  {isSearching ? <>Searching...</> : <><Search className="h-4 w-4" />Find Recipes</>}
                 </Button>
               </CardContent>
             </Card>
 
-            {/* Search Results */}
             {searchResults.length > 0 && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Recipe Suggestions</h3>
@@ -515,188 +426,162 @@ const MealsPage = () => {
                     <Card key={recipe.id}>
                       <CardHeader className="pb-2">
                         <div className="flex items-start justify-between">
-                          <div>
-                            <CardTitle className="text-lg">{recipe.title}</CardTitle>
-                            <CardDescription>{recipe.description}</CardDescription>
-                          </div>
-                          <Badge className={DIFFICULTY_INFO[recipe.difficulty].color}>
-                            {DIFFICULTY_INFO[recipe.difficulty].icon} {DIFFICULTY_INFO[recipe.difficulty].label}
-                          </Badge>
+                          <div><CardTitle className="text-lg">{recipe.title}</CardTitle><CardDescription>{recipe.description}</CardDescription></div>
+                          <Badge className={DIFFICULTY_INFO[recipe.difficulty].color}>{DIFFICULTY_INFO[recipe.difficulty].icon} {DIFFICULTY_INFO[recipe.difficulty].label}</Badge>
                         </div>
                       </CardHeader>
                       <CardContent>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-4 w-4" />
-                            {recipe.prepTime + recipe.cookTime} mins
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-4 w-4" />
-                            {recipe.servings} servings
-                          </span>
-                          <Badge variant="outline">
-                            {CUISINE_TYPES.find(c => c.value === recipe.cuisine)?.label}
-                          </Badge>
+                          <span className="flex items-center gap-1"><Clock className="h-4 w-4" />{recipe.prepTime + recipe.cookTime} mins</span>
+                          <span className="flex items-center gap-1"><Users className="h-4 w-4" />{recipe.servings} servings</span>
+                          <Badge variant="outline">{CUISINE_TYPES.find(c => c.value === recipe.cuisine)?.label}</Badge>
                         </div>
-                        
                         <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setViewingRecipe(recipe)}
-                            className="gap-1"
-                          >
-                            <Eye className="h-4 w-4" />
-                            View
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleSaveRecipe(recipe)}
-                          >
-                            Save to Bank
-                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setViewingRecipe(recipe)} className="gap-1"><Eye className="h-4 w-4" />View</Button>
+                          <Button size="sm" variant="outline" onClick={() => handleSaveRecipe(recipe)}>Save to Bank</Button>
                           <Select onValueChange={(day) => handleAddToDay(recipe, day)}>
-                            <SelectTrigger className="w-[140px] h-9">
-                              <SelectValue placeholder="Add to day" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {DAYS_OF_WEEK.map(day => (
-                                <SelectItem key={day} value={day}>{day}</SelectItem>
-                              ))}
-                            </SelectContent>
+                            <SelectTrigger className="w-[140px] h-9"><SelectValue placeholder="Add to day" /></SelectTrigger>
+                            <SelectContent>{DAYS_OF_WEEK.map(day => (<SelectItem key={day} value={day}>{day}</SelectItem>))}</SelectContent>
                           </Select>
                         </div>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
-
                 <div className="flex justify-center pt-4">
-                  <Button
-                    variant="outline"
-                    onClick={handleLoadMore}
-                    disabled={isLoadingMore}
-                    className="gap-2"
-                  >
-                    {isLoadingMore ? (
-                      <>Loading...</>
-                    ) : (
-                      <>
-                        <Search className="h-4 w-4" />
-                        Find more recipes
-                      </>
-                    )}
+                  <Button variant="outline" onClick={handleLoadMore} disabled={isLoadingMore} className="gap-2">
+                    {isLoadingMore ? <>Loading...</> : <><Search className="h-4 w-4" />Find more recipes</>}
                   </Button>
                 </div>
               </div>
             )}
           </TabsContent>
 
-          {/* Planner Tab */}
+          {/* ============ Planner Tab ============ */}
           <TabsContent value="planner" className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-xl font-semibold">Weekly Meal Plan</h2>
-              <Button 
-                onClick={handleGenerateGroceryList}
-                disabled={Object.keys(mealPlan).length === 0}
-                className="gap-2"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                Generate Grocery List
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setShowSettings(!showSettings)} className="gap-2">
+                  <Settings2 className="h-4 w-4" /> Meal types
+                </Button>
+                <Button onClick={handleGenerateGroceryList} disabled={totalPlannedMeals === 0} className="gap-2">
+                  <ShoppingCart className="h-4 w-4" />Generate Grocery List
+                </Button>
+              </div>
             </div>
+
+            {/* Meal type settings */}
+            {showSettings && (
+              <Card className="shadow-soft">
+                <CardContent className="py-4 space-y-3">
+                  <p className="text-sm font-medium">Show meal types</p>
+                  <p className="text-xs text-muted-foreground">Dinner is always shown. Toggle breakfast and lunch if you want to plan those too.</p>
+                  <div className="flex flex-wrap gap-6">
+                    <div className="flex items-center gap-2">
+                      <Switch id="show-breakfast" checked={showBreakfast} onCheckedChange={setShowBreakfast} />
+                      <Label htmlFor="show-breakfast" className="text-sm">🌅 Breakfast</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Switch id="show-lunch" checked={showLunch} onCheckedChange={setShowLunch} />
+                      <Label htmlFor="show-lunch" className="text-sm">☀️ Lunch</Label>
+                    </div>
+                    <div className="flex items-center gap-2 opacity-50">
+                      <Switch checked disabled />
+                      <Label className="text-sm">🌙 Dinner</Label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid gap-4">
-              {DAYS_OF_WEEK.map(day => {
-                const recipe = mealPlan[day];
-                return (
-                  <Card 
-                    key={day} 
-                    className="cursor-pointer hover:border-primary/50 transition-colors"
-                    onClick={() => setEditingDay(day)}
-                  >
-                    <CardContent className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-24 font-medium">{day}</div>
-                          {recipe ? (
-                            <div className="flex items-center gap-3">
-                              <div>
-                                <p className="font-medium">{recipe.title}</p>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                  <Clock className="h-3 w-3" />
-                                  {recipe.prepTime + recipe.cookTime} mins
-                                  <Badge variant="outline" className="text-xs">
-                                    {DIFFICULTY_INFO[recipe.difficulty].icon}
-                                  </Badge>
+              {DAYS_OF_WEEK.map(day => (
+                <Card key={day} className="shadow-soft">
+                  <CardContent className="py-4">
+                    <div className="font-medium text-base mb-3">{day}</div>
+                    <div className="space-y-3">
+                      {visibleMealTypes.map(mealType => {
+                        const meals = getMealsForDayType(day, mealType);
+                        return (
+                          <div key={mealType}>
+                            {visibleMealTypes.length > 1 && (
+                              <p className="text-xs text-muted-foreground font-medium mb-1">{MEAL_TYPE_INFO[mealType].icon} {MEAL_TYPE_INFO[mealType].label}</p>
+                            )}
+                            <div className="space-y-1">
+                              {meals.map(meal => (
+                                <div key={meal.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/40 border">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <p className="font-medium text-sm truncate">{meal.name}</p>
+                                    {meal.recipe && (
+                                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                                        <Clock className="h-3 w-3" />
+                                        {meal.recipe.prepTime + meal.recipe.cookTime}m
+                                      </div>
+                                    )}
+                                    {meal.recipe && !recipes.find(r => r.id === meal.recipe!.id) && (
+                                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2 shrink-0" onClick={() => { handleSaveRecipe(meal.recipe!); toast.success('Recipe saved!'); }}>
+                                        <BookOpen className="h-3 w-3 mr-1" />Save
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeMealFromPlan(day, meal.id)}>
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
                                 </div>
-                              </div>
+                              ))}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start text-muted-foreground hover:text-foreground h-8 text-xs"
+                                onClick={() => openDayDialog(day, mealType)}
+                              >
+                                <Plus className="h-3.5 w-3.5 mr-1" />
+                                {meals.length === 0 ? `Add ${mealType}...` : 'Add another...'}
+                              </Button>
                             </div>
-                          ) : (
-                            <p className="text-muted-foreground text-sm">Click to add a meal...</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          {recipe && !recipes.find(r => r.id === recipe.id) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="gap-1 text-xs"
-                              onClick={(e) => { e.stopPropagation(); handleSaveRecipe(recipe); toast.success('Recipe saved!'); }}
-                            >
-                              <BookOpen className="h-3 w-3" /> Save
-                            </Button>
-                          )}
-                          {recipe && recipes.find(r => r.id === recipe.id) && (
-                            <Badge variant="secondary" className="text-xs">Saved</Badge>
-                          )}
-                          {recipe && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={(e) => { e.stopPropagation(); handleRemoveFromDay(day); }}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
 
-            {/* Edit day dialog */}
-            <Dialog open={!!editingDay} onOpenChange={(open) => !open && setEditingDay(null)}>
+            {/* Add meal dialog */}
+            <Dialog open={!!editingDay} onOpenChange={(open) => { if (!open) setEditingDay(null); }}>
               <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>{editingDay ? `${editingDay}'s Meal` : 'Choose Meal'}</DialogTitle>
-                  <DialogDescription>
-                    Pick from your saved recipes or search results
-                  </DialogDescription>
+                  <DialogTitle>{editingDay} — {MEAL_TYPE_INFO[editingMealType].icon} {MEAL_TYPE_INFO[editingMealType].label}</DialogTitle>
+                  <DialogDescription>Type a meal name or pick from your saved recipes</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
+                  {/* Quick type-in */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Type a meal</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="e.g. Spaghetti Bolognese"
+                        value={quickMealName}
+                        onChange={e => setQuickMealName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { handleQuickAdd(); } }}
+                      />
+                      <Button onClick={handleQuickAdd} disabled={!quickMealName.trim()} size="sm">Add</Button>
+                    </div>
+                  </div>
+
                   {/* Saved recipes */}
                   {recipes.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Saved Recipes</Label>
+                      <Label className="text-sm font-medium">Or pick from saved recipes</Label>
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {recipes.map(r => (
-                          <div
-                            key={r.id}
-                            className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors"
-                            onClick={() => {
-                              if (editingDay) handleAddToDay(r, editingDay);
-                              setEditingDay(null);
-                            }}
-                          >
+                          <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors" onClick={() => handleSelectRecipeForDay(r)}>
                             <div>
                               <p className="font-medium text-sm">{r.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {r.prepTime + r.cookTime} mins
+                                <Clock className="h-3 w-3" />{r.prepTime + r.cookTime} mins
                                 <Badge variant="outline" className="text-xs">{DIFFICULTY_INFO[r.difficulty].label}</Badge>
                               </div>
                             </div>
@@ -710,22 +595,14 @@ const MealsPage = () => {
                   {/* Recent search results */}
                   {searchResults.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Search Results</Label>
+                      <Label className="text-sm font-medium">Recent search results</Label>
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {searchResults.map(r => (
-                          <div
-                            key={r.id}
-                            className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors"
-                            onClick={() => {
-                              if (editingDay) handleAddToDay(r, editingDay);
-                              setEditingDay(null);
-                            }}
-                          >
+                          <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors" onClick={() => handleSelectRecipeForDay(r)}>
                             <div>
                               <p className="font-medium text-sm">{r.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                {r.prepTime + r.cookTime} mins
+                                <Clock className="h-3 w-3" />{r.prepTime + r.cookTime} mins
                                 <Badge variant="outline" className="text-xs">{DIFFICULTY_INFO[r.difficulty].label}</Badge>
                               </div>
                             </div>
@@ -737,21 +614,10 @@ const MealsPage = () => {
                   )}
 
                   {recipes.length === 0 && searchResults.length === 0 && (
-                    <div className="text-center py-6 text-muted-foreground">
+                    <div className="text-center py-4 text-muted-foreground">
                       <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">No recipes available yet</p>
-                      <p className="text-xs mt-1">Use the "Find Meals" tab to search for recipes first</p>
+                      <p className="text-xs">No saved recipes yet — type a meal name above or use "Find Meals" to search</p>
                     </div>
-                  )}
-
-                  {editingDay && mealPlan[editingDay] && (
-                    <Button
-                      variant="outline"
-                      className="w-full text-destructive hover:text-destructive"
-                      onClick={() => { handleRemoveFromDay(editingDay); setEditingDay(null); }}
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" /> Remove {editingDay}'s Meal
-                    </Button>
                   )}
                 </div>
               </DialogContent>
@@ -762,36 +628,19 @@ const MealsPage = () => {
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      <ShoppingCart className="h-5 w-5" />
-                      Grocery List
-                    </CardTitle>
+                    <CardTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" />Grocery List</CardTitle>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={handleExportGroceryList} className="gap-1">
-                        <Download className="h-4 w-4" />
-                        Export
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={handleShareGroceryList} className="gap-1">
-                        <Share2 className="h-4 w-4" />
-                        Share
-                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleExportGroceryList} className="gap-1"><Download className="h-4 w-4" />Export</Button>
+                      <Button variant="outline" size="sm" onClick={handleShareGroceryList} className="gap-1"><Share2 className="h-4 w-4" />Share</Button>
                     </div>
                   </div>
-                  <CardDescription>
-                    Tick off items you already have
-                  </CardDescription>
+                  <CardDescription>Tick off items you already have</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     {groceryList.map(item => (
-                      <div 
-                        key={item.id}
-                        className={`flex items-center gap-3 p-2 rounded-lg ${item.checked ? 'bg-muted line-through text-muted-foreground' : 'bg-secondary/30'}`}
-                      >
-                        <Checkbox 
-                          checked={item.checked}
-                          onCheckedChange={() => handleToggleGroceryItem(item.id)}
-                        />
+                      <div key={item.id} className={`flex items-center gap-3 p-2 rounded-lg ${item.checked ? 'bg-muted line-through text-muted-foreground' : 'bg-secondary/30'}`}>
+                        <Checkbox checked={item.checked} onCheckedChange={() => handleToggleGroceryItem(item.id)} />
                         <span>{item.amount} {item.unit} {item.item}</span>
                       </div>
                     ))}
@@ -801,31 +650,17 @@ const MealsPage = () => {
             )}
           </TabsContent>
 
-          {/* Recipe Bank Tab */}
+          {/* ============ Recipe Bank Tab ============ */}
           <TabsContent value="recipes" className="space-y-6">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <h2 className="text-xl font-semibold">Saved Recipes</h2>
               <div className="flex gap-2">
-                <input
-                  ref={recipeFileInputRef}
-                  type="file"
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                  onChange={handleScanRecipeFile}
-                  className="hidden"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => recipeFileInputRef.current?.click()}
-                  disabled={scanningRecipe}
-                  className="gap-2"
-                >
+                <input ref={recipeFileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png" onChange={handleScanRecipeFile} className="hidden" />
+                <Button variant="outline" size="sm" onClick={() => recipeFileInputRef.current?.click()} disabled={scanningRecipe} className="gap-2">
                   {scanningRecipe ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
                   {scanningRecipe ? 'Scanning...' : 'Scan Recipe'}
                 </Button>
-                <Button size="sm" onClick={handleOpenManualEntry} className="gap-2">
-                  <Plus className="h-4 w-4" /> Add Manually
-                </Button>
+                <Button size="sm" onClick={handleOpenManualEntry} className="gap-2"><Plus className="h-4 w-4" /> Add Manually</Button>
               </div>
             </div>
 
@@ -841,44 +676,22 @@ const MealsPage = () => {
               <Tabs defaultValue="all">
                 <TabsList className="mb-4 flex-wrap h-auto gap-1">
                   <TabsTrigger value="all">All</TabsTrigger>
-                  {CUISINE_TYPES.filter(c => 
-                    recipes.some(r => r.cuisine === c.value)
-                  ).map(cuisine => (
-                    <TabsTrigger key={cuisine.value} value={cuisine.value}>
-                      {cuisine.label}
-                    </TabsTrigger>
+                  {CUISINE_TYPES.filter(c => recipes.some(r => r.cuisine === c.value)).map(cuisine => (
+                    <TabsTrigger key={cuisine.value} value={cuisine.value}>{cuisine.label}</TabsTrigger>
                   ))}
                 </TabsList>
-
                 <TabsContent value="all">
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {recipes.map(recipe => (
-                      <RecipeCard 
-                        key={recipe.id} 
-                        recipe={recipe} 
-                        onView={() => setViewingRecipe(recipe)}
-                        onEdit={() => handleEditRecipe(recipe)}
-                        onAddToDay={(day) => handleAddToDay(recipe, day)}
-                        onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))}
-                      />
+                      <RecipeCard key={recipe.id} recipe={recipe} onView={() => setViewingRecipe(recipe)} onEdit={() => handleEditRecipe(recipe)} onAddToDay={(day) => handleAddToDay(recipe, day)} onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))} />
                     ))}
                   </div>
                 </TabsContent>
-
-                {CUISINE_TYPES.filter(c => 
-                  recipes.some(r => r.cuisine === c.value)
-                ).map(cuisine => (
+                {CUISINE_TYPES.filter(c => recipes.some(r => r.cuisine === c.value)).map(cuisine => (
                   <TabsContent key={cuisine.value} value={cuisine.value}>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {recipes.filter(r => r.cuisine === cuisine.value).map(recipe => (
-                        <RecipeCard 
-                          key={recipe.id} 
-                          recipe={recipe} 
-                          onView={() => setViewingRecipe(recipe)}
-                          onEdit={() => handleEditRecipe(recipe)}
-                          onAddToDay={(day) => handleAddToDay(recipe, day)}
-                          onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))}
-                        />
+                        <RecipeCard key={recipe.id} recipe={recipe} onView={() => setViewingRecipe(recipe)} onEdit={() => handleEditRecipe(recipe)} onAddToDay={(day) => handleAddToDay(recipe, day)} onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))} />
                       ))}
                     </div>
                   </TabsContent>
@@ -895,52 +708,30 @@ const MealsPage = () => {
               <>
                 <DialogHeader>
                   <div className="flex items-start justify-between">
-                    <div>
-                      <DialogTitle className="text-2xl">{viewingRecipe.title}</DialogTitle>
-                      <DialogDescription>{viewingRecipe.description}</DialogDescription>
-                    </div>
-                    <Badge className={DIFFICULTY_INFO[viewingRecipe.difficulty].color}>
-                      {DIFFICULTY_INFO[viewingRecipe.difficulty].icon} {DIFFICULTY_INFO[viewingRecipe.difficulty].label}
-                    </Badge>
+                    <div><DialogTitle className="text-2xl">{viewingRecipe.title}</DialogTitle><DialogDescription>{viewingRecipe.description}</DialogDescription></div>
+                    <Badge className={DIFFICULTY_INFO[viewingRecipe.difficulty].color}>{DIFFICULTY_INFO[viewingRecipe.difficulty].icon} {DIFFICULTY_INFO[viewingRecipe.difficulty].label}</Badge>
                   </div>
                 </DialogHeader>
-
                 <div className="space-y-6">
                   <div className="flex items-center gap-6 text-sm">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      Prep: {viewingRecipe.prepTime} mins
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <ChefHat className="h-4 w-4" />
-                      Cook: {viewingRecipe.cookTime} mins
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Users className="h-4 w-4" />
-                      Serves {viewingRecipe.servings}
-                    </span>
+                    <span className="flex items-center gap-1"><Clock className="h-4 w-4" />Prep: {viewingRecipe.prepTime} mins</span>
+                    <span className="flex items-center gap-1"><ChefHat className="h-4 w-4" />Cook: {viewingRecipe.cookTime} mins</span>
+                    <span className="flex items-center gap-1"><Users className="h-4 w-4" />Serves {viewingRecipe.servings}</span>
                   </div>
-
                   <div>
                     <h4 className="font-semibold mb-2">Ingredients</h4>
                     <ul className="space-y-1">
                       {viewingRecipe.ingredients.map((ing, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-primary" />
-                          {ing.amount} {ing.unit} {ing.item}
-                        </li>
+                        <li key={i} className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-primary" />{ing.amount} {ing.unit} {ing.item}</li>
                       ))}
                     </ul>
                   </div>
-
                   <div>
                     <h4 className="font-semibold mb-2">Instructions</h4>
                     <ol className="space-y-2">
                       {viewingRecipe.instructions.map((step, i) => (
                         <li key={i} className="flex gap-3">
-                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">
-                            {i + 1}
-                          </span>
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-primary-foreground text-sm flex items-center justify-center">{i + 1}</span>
                           <span>{step}</span>
                         </li>
                       ))}
@@ -952,72 +743,32 @@ const MealsPage = () => {
           </DialogContent>
         </Dialog>
 
-        <RecipeEditorDialog
-          open={editorOpen}
-          onOpenChange={setEditorOpen}
-          recipe={editorRecipe}
-          onSave={handleEditorSave}
-          title={editorTitle}
-        />
+        <RecipeEditorDialog open={editorOpen} onOpenChange={setEditorOpen} recipe={editorRecipe} onSave={handleEditorSave} title={editorTitle} />
       </div>
     </div>
   );
 };
 
-// Recipe Card Component
-const RecipeCard = ({ 
-  recipe, 
-  onView, 
-  onEdit,
-  onAddToDay, 
-  onDelete 
-}: { 
-  recipe: Recipe; 
-  onView: () => void; 
-  onEdit: () => void;
-  onAddToDay: (day: string) => void; 
-  onDelete: () => void;
-}) => (
+// ============ Recipe Card ============
+
+const RecipeCard = ({ recipe, onView, onEdit, onAddToDay, onDelete }: { recipe: Recipe; onView: () => void; onEdit: () => void; onAddToDay: (day: string) => void; onDelete: () => void }) => (
   <Card>
     <CardHeader className="pb-2">
       <div className="flex items-start justify-between">
-        <div>
-          <CardTitle className="text-lg">{recipe.title}</CardTitle>
-          <Badge variant="outline" className="mt-1">
-            {CUISINE_TYPES.find(c => c.value === recipe.cuisine)?.label}
-          </Badge>
-        </div>
-        <Badge className={DIFFICULTY_INFO[recipe.difficulty].color}>
-          {DIFFICULTY_INFO[recipe.difficulty].icon}
-        </Badge>
+        <div><CardTitle className="text-lg">{recipe.title}</CardTitle><Badge variant="outline" className="mt-1">{CUISINE_TYPES.find(c => c.value === recipe.cuisine)?.label}</Badge></div>
+        <Badge className={DIFFICULTY_INFO[recipe.difficulty].color}>{DIFFICULTY_INFO[recipe.difficulty].icon}</Badge>
       </div>
     </CardHeader>
     <CardContent>
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-        <Clock className="h-4 w-4" />
-        {recipe.prepTime + recipe.cookTime} mins
-      </div>
-      
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4"><Clock className="h-4 w-4" />{recipe.prepTime + recipe.cookTime} mins</div>
       <div className="flex gap-2 flex-wrap">
-        <Button size="sm" variant="outline" onClick={onView} className="gap-1">
-          <Eye className="h-4 w-4" /> View
-        </Button>
-        <Button size="sm" variant="outline" onClick={onEdit} className="gap-1">
-          <Pencil className="h-4 w-4" /> Edit
-        </Button>
+        <Button size="sm" variant="outline" onClick={onView} className="gap-1"><Eye className="h-4 w-4" /> View</Button>
+        <Button size="sm" variant="outline" onClick={onEdit} className="gap-1"><Pencil className="h-4 w-4" /> Edit</Button>
         <Select onValueChange={onAddToDay}>
-          <SelectTrigger className="w-[100px] h-9">
-            <SelectValue placeholder="Add to..." />
-          </SelectTrigger>
-          <SelectContent>
-            {DAYS_OF_WEEK.map(day => (
-              <SelectItem key={day} value={day}>{day}</SelectItem>
-            ))}
-          </SelectContent>
+          <SelectTrigger className="w-[100px] h-9"><SelectValue placeholder="Add to..." /></SelectTrigger>
+          <SelectContent>{DAYS_OF_WEEK.map(day => (<SelectItem key={day} value={day}>{day}</SelectItem>))}</SelectContent>
         </Select>
-        <Button size="sm" variant="ghost" onClick={onDelete}>
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <Button size="sm" variant="ghost" onClick={onDelete}><Trash2 className="h-4 w-4" /></Button>
       </div>
     </CardContent>
   </Card>
