@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { format, isToday, isTomorrow, isThisWeek, parseISO } from "date-fns";
 import FamilyMembersSection from "@/components/family/FamilyMembersSection";
 import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 import { useCalendarData, type CalendarEventRow } from "@/hooks/useCalendarData";
+import { supabase } from "@/integrations/supabase/client";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
 import kitchenImage from "@/assets/kitchen.jpg";
@@ -15,15 +16,46 @@ import giftsImage from "@/assets/gifts.jpg";
 import spendingImage from "@/assets/spending.jpg";
 import tasksImage from "@/assets/tasks.jpg";
 
+interface InboxEmail {
+  id: string;
+  subject: string;
+  from: string;
+  date: string;
+  snippet: string;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useFamilyMembers();
   const { events, detectedEvents, fetchEvents, fetchDetectedEvents } = useCalendarData();
+  const [inboxEmails, setInboxEmails] = useState<InboxEmail[]>([]);
+  const [inboxLoading, setInboxLoading] = useState(false);
 
   useEffect(() => {
     fetchEvents();
     fetchDetectedEvents();
+    fetchInbox();
   }, [fetchEvents, fetchDetectedEvents]);
+
+  const fetchInbox = async () => {
+    setInboxLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await supabase.functions.invoke("scan-emails", {
+        body: { action: "fetch_inbox" },
+      });
+
+      if (res.data?.emails) {
+        setInboxEmails(res.data.emails);
+      }
+    } catch (err) {
+      console.error("Failed to fetch inbox:", err);
+    } finally {
+      setInboxLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     navigate("/");
@@ -52,8 +84,6 @@ const Dashboard = () => {
     return format(start, "EEE");
   };
 
-  // Pending detected events count
-  const pendingEmails = detectedEvents.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,36 +156,33 @@ const Dashboard = () => {
             </DashboardCard>
           </div>
 
-          {/* Email parsing */}
+          {/* Email inbox */}
           <div id="email-section">
             <DashboardCard
               icon={<Mail className="h-6 w-6" />}
               title="Email inbox"
-              description="Events detected from your emails"
+              description="Latest emails from your primary inbox"
               actionLabel="Review emails"
               actionHref="/emails"
               backgroundImage={emailImage}
             >
-              {pendingEmails === 0 ? (
+              {inboxEmails.length === 0 ? (
                 <div className="pt-4 text-center py-8">
-                  <p className="text-muted-foreground">No pending emails</p>
-                  <p className="text-sm text-muted-foreground mt-1">Connect your inbox to detect events</p>
+                  <p className="text-muted-foreground">
+                    {inboxLoading ? "Loading inbox..." : "No emails to show"}
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">Connect your Gmail to see your latest messages</p>
                 </div>
               ) : (
                 <div className="pt-2 space-y-2">
-                  {detectedEvents.slice(0, 3).map(de => (
-                    <EmailItem
-                      key={de.id}
-                      subject={de.title}
-                      detail={de.source_from || de.source_subject || ""}
-                      confidence={de.confidence}
+                  {inboxEmails.map(email => (
+                    <InboxItem
+                      key={email.id}
+                      subject={email.subject}
+                      from={email.from}
+                      snippet={email.snippet}
                     />
                   ))}
-                  {pendingEmails > 3 && (
-                    <Link to="/emails" className="block text-sm text-primary hover:underline text-center pt-1">
-                      {pendingEmails - 3} more pending →
-                    </Link>
-                  )}
                 </div>
               )}
             </DashboardCard>
@@ -274,14 +301,18 @@ const EventItem = ({ time, title, category }: { time: string; title: string; cat
   </div>
 );
 
-const EmailItem = ({ subject, detail, confidence }: { subject: string; detail: string; confidence: string }) => (
-  <div className="p-3 rounded-lg bg-secondary/50 border space-y-1">
-    <div className="flex items-start justify-between gap-2">
-      <p className="font-medium text-sm truncate">{subject}</p>
-      <Badge variant={confidence === 'high' ? 'default' : 'secondary'} className="text-xs shrink-0">{confidence}</Badge>
+const InboxItem = ({ subject, from, snippet }: { subject: string; from: string; snippet: string }) => {
+  // Extract sender name from "Name <email>" format
+  const senderName = from.replace(/<[^>]+>/, "").trim() || from;
+  return (
+    <div className="p-3 rounded-lg bg-secondary/50 border space-y-1">
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-medium text-sm truncate flex-1">{subject}</p>
+      </div>
+      <p className="text-xs text-muted-foreground truncate">{senderName}</p>
+      <p className="text-xs text-muted-foreground/70 truncate">{snippet}</p>
     </div>
-    <p className="text-sm text-muted-foreground truncate">{detail}</p>
-  </div>
-);
+  );
+};
 
 export default Dashboard;
