@@ -150,13 +150,6 @@ const Auth = () => {
       
       <Card className="w-full max-w-md relative z-10 border-[#e8e4e0] bg-white/80 backdrop-blur-sm shadow-xl">
         <CardHeader className="text-center pb-4">
-          <div className="flex justify-center mb-4">
-            <img 
-              src={parentAssistLogo} 
-              alt="Parent Assist" 
-              className="h-16 w-auto"
-            />
-          </div>
           <CardTitle className="text-2xl font-normal text-[#2d2d2d]">
             {isLogin ? "Welcome back" : "Create your account"}
           </CardTitle>
