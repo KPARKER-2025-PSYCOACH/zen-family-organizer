@@ -312,9 +312,31 @@ const MealsPage = () => {
 
   const handleQuickAdd = () => {
     if (!quickMealName.trim() || !editingDay) return;
-    addMealToPlan(editingDay, editingMealType, quickMealName.trim());
+    const name = quickMealName.trim();
+    // Create a stub recipe card so it appears in the Recipes tab for later editing
+    const stubRecipe: Recipe = {
+      id: `manual-${Date.now()}`,
+      title: name,
+      description: '',
+      cuisine: 'british',
+      difficulty: 'easy',
+      prepTime: 0,
+      cookTime: 0,
+      servings: 4,
+      ingredients: [],
+      instructions: [],
+      savedAt: new Date(),
+    };
+    // Only create if no existing recipe with the same name (case-insensitive)
+    const existing = recipes.find(r => r.title.toLowerCase() === name.toLowerCase());
+    if (!existing) {
+      setRecipes(prev => [...prev, stubRecipe]);
+      addMealToPlan(editingDay, editingMealType, name, stubRecipe);
+    } else {
+      addMealToPlan(editingDay, editingMealType, name, existing);
+    }
     setQuickMealName('');
-    toast.success('Meal added!');
+    toast.success('Meal added! You can flesh out the recipe in the Recipes tab.');
   };
 
   const handleSelectRecipeForDay = (recipe: Recipe) => {
