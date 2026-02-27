@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, LogOut, PoundSterling, Users, CheckSquare } from "lucide-react";
+import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, LogOut, PoundSterling, Users, CheckSquare, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, isToday, isTomorrow, parseISO } from "date-fns";
 import FamilyMembersSection from "@/components/family/FamilyMembersSection";
@@ -27,7 +27,7 @@ interface InboxEmail {
 }
 
 interface TodoItem { id: string; text: string; completed: boolean; }
-interface TodoList { id: string; name: string; items: TodoItem[]; collapsed: boolean; }
+interface TodoList { id: string; name: string; items: TodoItem[]; collapsed: boolean; starred?: boolean; }
 interface PlannedMeal { id: string; mealType: string; name: string; }
 interface TasksMember { id: string; name: string; tasks: { id: string; text: string; category: string; }[]; }
 
@@ -54,7 +54,7 @@ const Dashboard = () => {
   const loadLocalData = () => {
     // Todo lists
     try {
-      const raw = localStorage.getItem("parentassist_todo/lists");
+      const raw = localStorage.getItem("parentassist_todo_lists");
       if (raw) setTodoLists(JSON.parse(raw));
     } catch {}
 
@@ -120,6 +120,8 @@ const Dashboard = () => {
   };
 
   // Computed summaries
+  const starredList = todoLists.find(l => l.starred);
+  const starredPending = starredList ? starredList.items.filter(i => !i.completed) : [];
   const totalTodoItems = todoLists.reduce((sum, l) => sum + l.items.filter(i => !i.completed).length, 0);
   const totalMealsPlanned = Object.values(plannedMeals).reduce((sum, meals) => sum + meals.length, 0);
   const totalAssignedTasks = taskMembers.reduce((sum, m) => sum + m.tasks.length, 0);
@@ -241,8 +243,34 @@ const Dashboard = () => {
                 <p className="text-muted-foreground">No to-do lists yet</p>
                 <p className="text-sm text-muted-foreground mt-1">Create a list to start tracking tasks</p>
               </div>
+            ) : starredList ? (
+              <div className="pt-2 space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  <p className="font-medium text-sm">{starredList.name}</p>
+                </div>
+                {starredPending.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-2">All done! 🎉</p>
+                ) : (
+                  starredPending.slice(0, 5).map(item => (
+                    <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/50 border">
+                      <div className="h-3 w-3 rounded-full border-2 border-muted-foreground/40 shrink-0" />
+                      <span className="text-sm truncate">{item.text}</span>
+                    </div>
+                  ))
+                )}
+                {starredPending.length > 5 && (
+                  <p className="text-xs text-muted-foreground text-center">+{starredPending.length - 5} more</p>
+                )}
+                <Link to="/todos" className="block text-sm text-primary hover:underline text-center pt-1">
+                  View all lists →
+                </Link>
+              </div>
             ) : (
               <div className="pt-2 space-y-2">
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  Star a list to see its items here
+                </p>
                 {todoLists.slice(0, 3).map(list => {
                   const pending = list.items.filter(i => !i.completed).length;
                   const done = list.items.filter(i => i.completed).length;
@@ -256,11 +284,9 @@ const Dashboard = () => {
                     </div>
                   );
                 })}
-                {totalTodoItems > 0 && (
-                  <Link to="/todos" className="block text-sm text-primary hover:underline text-center pt-1">
-                    {totalTodoItems} items remaining →
-                  </Link>
-                )}
+                <Link to="/todos" className="block text-sm text-primary hover:underline text-center pt-1">
+                  {totalTodoItems} items remaining →
+                </Link>
               </div>
             )}
           </DashboardCard>
