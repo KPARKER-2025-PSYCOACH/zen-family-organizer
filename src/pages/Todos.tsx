@@ -134,7 +134,7 @@ const TodosPage = () => {
         subtitle="Keep track of tasks, errands, and reminders"
       />
 
-      <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
+      <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         {/* Create new list */}
         <Card>
           <CardContent className="pt-6">
@@ -168,6 +168,7 @@ const TodosPage = () => {
           </div>
         )}
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {lists.map((list) => {
           const completedCount = list.items.filter((i) => i.completed).length;
           const totalCount = list.items.length;
@@ -283,6 +284,7 @@ const TodosPage = () => {
             </Card>
           );
         })}
+        </div>
       </div>
     </div>
   );
