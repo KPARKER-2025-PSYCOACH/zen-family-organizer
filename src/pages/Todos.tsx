@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ListChecks,
   GripVertical,
+  Star,
 } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
@@ -51,6 +52,7 @@ interface TodoList {
   name: string;
   items: TodoItem[];
   collapsed: boolean;
+  starred?: boolean;
 }
 
 const STORAGE_KEY = "parentassist_todo_lists";
@@ -76,6 +78,7 @@ interface SortableListCardProps {
   toggleItem: (listId: string, itemId: string) => void;
   deleteItem: (listId: string, itemId: string) => void;
   addItem: (listId: string) => void;
+  toggleStar: (id: string) => void;
   newItemText: string;
   setNewItemText: (listId: string, value: string) => void;
   inputRef: (listId: string, el: HTMLInputElement | null) => void;
@@ -88,6 +91,7 @@ const SortableListCard = ({
   toggleItem,
   deleteItem,
   addItem,
+  toggleStar,
   newItemText,
   setNewItemText,
   inputRef,
@@ -112,7 +116,7 @@ const SortableListCard = ({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <Card className="h-full">
+      <Card className={`h-full ${list.starred ? "ring-2 ring-yellow-400/60" : ""}`}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             {/* Drag handle */}
@@ -143,6 +147,16 @@ const SortableListCard = ({
                 </span>
               )}
             </button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              onClick={() => toggleStar(list.id)}
+              aria-label={list.starred ? "Unstar list" : "Star as priority list"}
+            >
+              <Star className={`h-4 w-4 ${list.starred ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`} />
+            </Button>
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -310,6 +324,15 @@ const TodosPage = () => {
     );
   };
 
+  const toggleStar = (listId: string) => {
+    setLists((prev) =>
+      prev.map((l) => ({
+        ...l,
+        starred: l.id === listId ? !l.starred : false,
+      }))
+    );
+  };
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
@@ -389,6 +412,7 @@ const TodosPage = () => {
                   toggleItem={toggleItem}
                   deleteItem={deleteItem}
                   addItem={addItem}
+                  toggleStar={toggleStar}
                   newItemText={newItemTexts[list.id] || ""}
                   setNewItemText={(id, val) =>
                     setNewItemTexts((prev) => ({ ...prev, [id]: val }))
