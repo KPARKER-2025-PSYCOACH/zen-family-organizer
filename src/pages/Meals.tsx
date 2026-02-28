@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,10 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { UtensilsCrossed, Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2 } from "lucide-react";
+import { Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2 } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
 import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
+import { useMealData } from "@/hooks/useMealData";
 import type { Recipe, GroceryItem, DietaryRequirement, CuisineType } from "@/types";
 
 // ============ Constants ============
@@ -55,9 +56,6 @@ const CUISINE_TYPES: { value: CuisineType; label: string }[] = [
   { value: 'british', label: '🇬🇧 British' },
 ];
 
-
-
-
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 type MealType = 'breakfast' | 'lunch' | 'dinner';
@@ -68,19 +66,11 @@ const MEAL_TYPE_INFO: Record<MealType, { label: string; icon: string }> = {
   dinner: { label: 'Dinner', icon: '🌙' },
 };
 
-interface PlannedMeal {
-  id: string;
-  mealType: MealType;
-  name: string;
-  recipe?: Recipe;
-}
-
 // ============ Main Component ============
 
 const MealsPage = () => {
   const { members: familyMembers } = useFamilyMembers();
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [mealPlan, setMealPlan] = useState<Record<string, PlannedMeal[]>>({});
+  const { recipes, mealPlan, loading: dataLoading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan } = useMealData();
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
@@ -106,7 +96,6 @@ const MealsPage = () => {
   const recipeFileInputRef = useRef<HTMLInputElement>(null);
   const [scanningRecipe, setScanningRecipe] = useState(false);
 
-  // Meal type visibility toggles
   const [showBreakfast, setShowBreakfast] = useState<boolean>(() => {
     try { return JSON.parse(localStorage.getItem('parentassist_show_breakfast') || 'false'); } catch { return false; }
   });
@@ -114,17 +103,16 @@ const MealsPage = () => {
     try { return JSON.parse(localStorage.getItem('parentassist_show_lunch') || 'false'); } catch { return false; }
   });
   const [showSettings, setShowSettings] = useState(false);
-
-  // Quick-add text input in dialog
   const [quickMealName, setQuickMealName] = useState('');
 
-  useEffect(() => { localStorage.setItem('parentassist_dietary_reqs', JSON.stringify(savedDietaryReqs)); }, [savedDietaryReqs]);
-  useEffect(() => { localStorage.setItem('parentassist_custom_dietary', JSON.stringify(customDietaryReqs)); }, [customDietaryReqs]);
-  useEffect(() => { localStorage.setItem('parentassist_show_breakfast', JSON.stringify(showBreakfast)); }, [showBreakfast]);
-  useEffect(() => { localStorage.setItem('parentassist_show_lunch', JSON.stringify(showLunch)); }, [showLunch]);
+  // Persist UI preferences in localStorage (these are fine as local-only)
+  const updateDietaryReqs = (reqs: DietaryRequirement[]) => { setSavedDietaryReqs(reqs); localStorage.setItem('parentassist_dietary_reqs', JSON.stringify(reqs)); };
+  const updateCustomDietaryReqs = (reqs: { value: string; label: string }[]) => { setCustomDietaryReqs(reqs); localStorage.setItem('parentassist_custom_dietary', JSON.stringify(reqs)); };
+  const updateShowBreakfast = (v: boolean) => { setShowBreakfast(v); localStorage.setItem('parentassist_show_breakfast', JSON.stringify(v)); };
+  const updateShowLunch = (v: boolean) => { setShowLunch(v); localStorage.setItem('parentassist_show_lunch', JSON.stringify(v)); };
 
   const toggleSavedDietaryReq = (req: DietaryRequirement) => {
-    setSavedDietaryReqs(prev => prev.includes(req) ? prev.filter(r => r !== req) : [...prev, req]);
+    updateDietaryReqs(savedDietaryReqs.includes(req) ? savedDietaryReqs.filter(r => r !== req) : [...savedDietaryReqs, req]);
   };
 
   const visibleMealTypes: MealType[] = [
@@ -172,28 +160,12 @@ const MealsPage = () => {
 
   // ============ Meal plan actions ============
 
-  const addMealToPlan = (day: string, mealType: MealType, name: string, recipe?: Recipe) => {
-    const meal: PlannedMeal = { id: `${Date.now()}-${Math.random()}`, mealType, name, recipe };
-    setMealPlan(prev => ({ ...prev, [day]: [...(prev[day] || []), meal] }));
-  };
-
-  const removeMealFromPlan = (day: string, mealId: string) => {
-    setMealPlan(prev => {
-      const updated = (prev[day] || []).filter(m => m.id !== mealId);
-      const newPlan = { ...prev };
-      if (updated.length === 0) delete newPlan[day]; else newPlan[day] = updated;
-      return newPlan;
-    });
-  };
-
   const handleAddToDay = (recipe: Recipe, day: string) => {
     addMealToPlan(day, 'dinner', recipe.title, recipe);
   };
 
   const handleSaveRecipe = (recipe: Recipe) => {
-    if (!recipes.find(r => r.id === recipe.id)) {
-      setRecipes([...recipes, { ...recipe, savedAt: new Date() }]);
-    }
+    saveRecipe(recipe);
   };
 
   const getMealsForDayType = (day: string, mealType: MealType) => {
@@ -225,14 +197,14 @@ const MealsPage = () => {
     if (!trimmed) return;
     const value = trimmed.toLowerCase().replace(/\s+/g, '_');
     if (customDietaryReqs.some(r => r.value === value)) return;
-    setCustomDietaryReqs(prev => [...prev, { value, label: trimmed }]);
-    setSavedDietaryReqs(prev => [...prev, value as DietaryRequirement]);
+    updateCustomDietaryReqs([...customDietaryReqs, { value, label: trimmed }]);
+    updateDietaryReqs([...savedDietaryReqs, value as DietaryRequirement]);
     setNewCustomReq('');
   };
 
   const handleRemoveCustomReq = (value: string) => {
-    setCustomDietaryReqs(prev => prev.filter(r => r.value !== value));
-    setSavedDietaryReqs(prev => prev.filter(r => r !== value));
+    updateCustomDietaryReqs(customDietaryReqs.filter(r => r.value !== value));
+    updateDietaryReqs(savedDietaryReqs.filter(r => r !== value));
   };
 
   // ============ Recipe scanning ============
@@ -275,17 +247,12 @@ const MealsPage = () => {
 
   const handleEditorSave = (recipe: Recipe) => {
     if (editingRecipeId) {
-      setRecipes(prev => prev.map(r => r.id === editingRecipeId ? recipe : r));
-      // Update meal plan references
-      setMealPlan(prev => {
-        const updated = { ...prev };
-        for (const day of Object.keys(updated)) {
-          updated[day] = updated[day].map(m => m.recipe?.id === editingRecipeId ? { ...m, name: recipe.title, recipe } : m);
-        }
-        return updated;
-      });
+      updateRecipe(editingRecipeId, recipe);
       toast.success('Recipe updated!');
-    } else { setRecipes(prev => [...prev, recipe]); toast.success('Recipe saved!'); }
+    } else {
+      saveRecipe(recipe);
+      toast.success('Recipe saved!');
+    }
   };
 
   const handleExportGroceryList = () => {
@@ -310,7 +277,6 @@ const MealsPage = () => {
   const handleQuickAdd = () => {
     if (!quickMealName.trim() || !editingDay) return;
     const name = quickMealName.trim();
-    // Create a stub recipe card so it appears in the Recipes tab for later editing
     const stubRecipe: Recipe = {
       id: `manual-${Date.now()}`,
       title: name,
@@ -324,14 +290,7 @@ const MealsPage = () => {
       instructions: [],
       savedAt: new Date(),
     };
-    // Only create if no existing recipe with the same name (case-insensitive)
-    const existing = recipes.find(r => r.title.toLowerCase() === name.toLowerCase());
-    if (!existing) {
-      setRecipes(prev => [...prev, stubRecipe]);
-      addMealToPlan(editingDay, editingMealType, name, stubRecipe);
-    } else {
-      addMealToPlan(editingDay, editingMealType, name, existing);
-    }
+    addMealToPlan(editingDay, editingMealType, name, stubRecipe);
     setQuickMealName('');
     toast.success('Meal added! You can flesh out the recipe in the Recipes tab.');
   };
@@ -346,6 +305,15 @@ const MealsPage = () => {
 
   // ============ Render ============
 
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PageHeader title="Meal Planner" subtitle="Plan your family's meals for the week" />
+        <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <PageHeader title="Meal Planner" subtitle="Plan your family's meals for the week" />
@@ -358,7 +326,6 @@ const MealsPage = () => {
             <TabsTrigger value="recipes"><BookOpen className="h-4 w-4 mr-1 hidden sm:inline" />Recipes</TabsTrigger>
           </TabsList>
 
-          {/* Family dietary info banner */}
           {familyMembers.length > 0 && (
             <Card className="shadow-soft">
               <CardContent className="py-3 px-4">
@@ -413,7 +380,6 @@ const MealsPage = () => {
                       </SelectContent>
                     </Select>
                   </div>
-
 
                   <div className="space-y-2">
                     <Label>Special Request</Label>
@@ -479,7 +445,6 @@ const MealsPage = () => {
               </div>
             </div>
 
-            {/* Meal type settings */}
             {showSettings && (
               <Card className="shadow-soft">
                 <CardContent className="py-4 space-y-3">
@@ -487,11 +452,11 @@ const MealsPage = () => {
                   <p className="text-xs text-muted-foreground">Dinner is always shown. Toggle breakfast and lunch if you want to plan those too.</p>
                   <div className="flex flex-wrap gap-6">
                     <div className="flex items-center gap-2">
-                      <Switch id="show-breakfast" checked={showBreakfast} onCheckedChange={setShowBreakfast} />
+                      <Switch id="show-breakfast" checked={showBreakfast} onCheckedChange={updateShowBreakfast} />
                       <Label htmlFor="show-breakfast" className="text-sm">🌅 Breakfast</Label>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Switch id="show-lunch" checked={showLunch} onCheckedChange={setShowLunch} />
+                      <Switch id="show-lunch" checked={showLunch} onCheckedChange={updateShowLunch} />
                       <Label htmlFor="show-lunch" className="text-sm">☀️ Lunch</Label>
                     </div>
                     <div className="flex items-center gap-2 opacity-50">
@@ -527,11 +492,6 @@ const MealsPage = () => {
                                         {meal.recipe.prepTime + meal.recipe.cookTime}m
                                       </div>
                                     )}
-                                    {meal.recipe && !recipes.find(r => r.id === meal.recipe!.id) && (
-                                      <Button variant="ghost" size="sm" className="h-6 text-xs px-2 shrink-0" onClick={() => { handleSaveRecipe(meal.recipe!); toast.success('Recipe saved!'); }}>
-                                        <BookOpen className="h-3 w-3 mr-1" />Save
-                                      </Button>
-                                    )}
                                   </div>
                                   <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeMealFromPlan(day, meal.id)}>
                                     <Trash2 className="h-3.5 w-3.5" />
@@ -565,7 +525,6 @@ const MealsPage = () => {
                   <DialogDescription>Type a meal name or pick from your saved recipes</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-2">
-                  {/* Quick type-in */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Type a meal</Label>
                     <div className="flex gap-2">
@@ -579,7 +538,6 @@ const MealsPage = () => {
                     </div>
                   </div>
 
-                  {/* Saved recipes */}
                   {recipes.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Or pick from saved recipes</Label>
@@ -599,7 +557,6 @@ const MealsPage = () => {
                     </div>
                   )}
 
-                  {/* Recent search results */}
                   {searchResults.length > 0 && (
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Recent search results</Label>
@@ -689,7 +646,7 @@ const MealsPage = () => {
                 <TabsContent value="all">
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {recipes.map(recipe => (
-                      <RecipeCard key={recipe.id} recipe={recipe} onView={() => setViewingRecipe(recipe)} onEdit={() => handleEditRecipe(recipe)} onAddToDay={(day) => handleAddToDay(recipe, day)} onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))} />
+                      <RecipeCard key={recipe.id} recipe={recipe} onView={() => setViewingRecipe(recipe)} onEdit={() => handleEditRecipe(recipe)} onAddToDay={(day) => handleAddToDay(recipe, day)} onDelete={() => deleteRecipe(recipe.id)} />
                     ))}
                   </div>
                 </TabsContent>
@@ -697,7 +654,7 @@ const MealsPage = () => {
                   <TabsContent key={cuisine.value} value={cuisine.value}>
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {recipes.filter(r => r.cuisine === cuisine.value).map(recipe => (
-                        <RecipeCard key={recipe.id} recipe={recipe} onView={() => setViewingRecipe(recipe)} onEdit={() => handleEditRecipe(recipe)} onAddToDay={(day) => handleAddToDay(recipe, day)} onDelete={() => setRecipes(recipes.filter(r => r.id !== recipe.id))} />
+                        <RecipeCard key={recipe.id} recipe={recipe} onView={() => setViewingRecipe(recipe)} onEdit={() => handleEditRecipe(recipe)} onAddToDay={(day) => handleAddToDay(recipe, day)} onDelete={() => deleteRecipe(recipe.id)} />
                       ))}
                     </div>
                   </TabsContent>
@@ -714,7 +671,7 @@ const MealsPage = () => {
               <>
                 <DialogHeader>
                   <div className="flex items-start justify-between">
-                    <div><DialogTitle className="text-2xl">{viewingRecipe.title}</DialogTitle><DialogDescription>{viewingRecipe.description}</DialogDescription></div>
+                    <div><DialogTitle className="text-2xl">{viewingRecipe.title}</DialogTitle><CardDescription>{viewingRecipe.description}</CardDescription></div>
                   </div>
                 </DialogHeader>
                 <div className="space-y-6">
@@ -777,5 +734,7 @@ const RecipeCard = ({ recipe, onView, onEdit, onAddToDay, onDelete }: { recipe: 
     </CardContent>
   </Card>
 );
+
+const CUISINE_TYPES_EXPORT = CUISINE_TYPES;
 
 export default MealsPage;

@@ -289,6 +289,92 @@ export type Database = {
         }
         Relationships: []
       }
+      meal_plan_entries: {
+        Row: {
+          created_at: string
+          day_of_week: string
+          id: string
+          meal_type: string
+          name: string
+          recipe_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: string
+          id?: string
+          meal_type?: string
+          name: string
+          recipe_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: string
+          id?: string
+          meal_type?: string
+          name?: string
+          recipe_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meal_plan_entries_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "saved_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      saved_recipes: {
+        Row: {
+          cook_time: number
+          created_at: string
+          cuisine: string
+          description: string
+          difficulty: string
+          id: string
+          ingredients: Json
+          instructions: Json
+          prep_time: number
+          servings: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cook_time?: number
+          created_at?: string
+          cuisine?: string
+          description?: string
+          difficulty?: string
+          id?: string
+          ingredients?: Json
+          instructions?: Json
+          prep_time?: number
+          servings?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cook_time?: number
+          created_at?: string
+          cuisine?: string
+          description?: string
+          difficulty?: string
+          id?: string
+          ingredients?: Json
+          instructions?: Json
+          prep_time?: number
+          servings?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sheets_connections: {
         Row: {
           created_at: string
@@ -358,6 +444,80 @@ export type Database = {
           updated_at?: string
           user_id?: string
           year?: number
+        }
+        Relationships: []
+      }
+      todo_items: {
+        Row: {
+          completed: boolean
+          created_at: string
+          id: string
+          list_id: string
+          position: number
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          list_id: string
+          position?: number
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          id?: string
+          list_id?: string
+          position?: number
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "todo_items_list_id_fkey"
+            columns: ["list_id"]
+            isOneToOne: false
+            referencedRelation: "todo_lists"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      todo_lists: {
+        Row: {
+          collapsed: boolean
+          created_at: string
+          id: string
+          name: string
+          position: number
+          starred: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          collapsed?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          starred?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          collapsed?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          starred?: boolean
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

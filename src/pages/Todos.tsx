@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -40,35 +40,7 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-
-interface TodoItem {
-  id: string;
-  text: string;
-  completed: boolean;
-}
-
-interface TodoList {
-  id: string;
-  name: string;
-  items: TodoItem[];
-  collapsed: boolean;
-  starred?: boolean;
-}
-
-const STORAGE_KEY = "parentassist_todo_lists";
-
-const loadLists = (): TodoList[] => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
-const saveLists = (lists: TodoList[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(lists));
-};
+import { useTodoData, type TodoList } from "@/hooks/useTodoData";
 
 /* ── Sortable list card ── */
 interface SortableListCardProps {
@@ -77,7 +49,7 @@ interface SortableListCardProps {
   deleteList: (id: string) => void;
   toggleItem: (listId: string, itemId: string) => void;
   deleteItem: (listId: string, itemId: string) => void;
-  addItem: (listId: string) => void;
+  addItem: (listId: string, text: string) => void;
   toggleStar: (id: string) => void;
   newItemText: string;
   setNewItemText: (listId: string, value: string) => void;
@@ -119,7 +91,6 @@ const SortableListCard = ({
       <Card className={`h-full ${list.starred ? "ring-2 ring-yellow-400/60" : ""}`}>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            {/* Drag handle */}
             <button
               type="button"
               className="cursor-grab active:cursor-grabbing touch-none p-1 -ml-1 text-muted-foreground hover:text-foreground transition-colors"
@@ -216,7 +187,10 @@ const SortableListCard = ({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                addItem(list.id);
+                const text = (newItemText || "").trim();
+                if (!text) return;
+                addItem(list.id, text);
+                setNewItemText(list.id, "");
               }}
               className="flex gap-2 pt-2"
             >
@@ -231,7 +205,7 @@ const SortableListCard = ({
                 type="submit"
                 size="sm"
                 variant="secondary"
-                disabled={!newItemText.trim()}
+                disabled={!newItemText?.trim()}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -245,7 +219,7 @@ const SortableListCard = ({
 
 /* ── Page ── */
 const TodosPage = () => {
-  const [lists, setLists] = useState<TodoList[]>(loadLists);
+  const { lists, loading, addList, deleteList, toggleCollapse, toggleStar, reorderLists, addItem, toggleItem, deleteItem } = useTodoData();
   const [newListName, setNewListName] = useState("");
   const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
   const newItemRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -255,82 +229,16 @@ const TodosPage = () => {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
-  useEffect(() => {
-    saveLists(lists);
-  }, [lists]);
-
-  const addList = () => {
+  const handleAddList = () => {
     const name = newListName.trim();
     if (!name) return;
-    setLists((prev) => [
-      ...prev,
-      { id: crypto.randomUUID(), name, items: [], collapsed: false },
-    ]);
+    addList(name);
     setNewListName("");
   };
 
-  const deleteList = (listId: string) => {
-    setLists((prev) => prev.filter((l) => l.id !== listId));
-  };
-
-  const toggleCollapse = (listId: string) => {
-    setLists((prev) =>
-      prev.map((l) => (l.id === listId ? { ...l, collapsed: !l.collapsed } : l))
-    );
-  };
-
-  const addItem = (listId: string) => {
-    const text = (newItemTexts[listId] || "").trim();
-    if (!text) return;
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId
-          ? {
-              ...l,
-              items: [
-                ...l.items,
-                { id: crypto.randomUUID(), text, completed: false },
-              ],
-            }
-          : l
-      )
-    );
-    setNewItemTexts((prev) => ({ ...prev, [listId]: "" }));
+  const handleAddItem = (listId: string, text: string) => {
+    addItem(listId, text);
     setTimeout(() => newItemRefs.current[listId]?.focus(), 0);
-  };
-
-  const toggleItem = (listId: string, itemId: string) => {
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId
-          ? {
-              ...l,
-              items: l.items.map((i) =>
-                i.id === itemId ? { ...i, completed: !i.completed } : i
-              ),
-            }
-          : l
-      )
-    );
-  };
-
-  const deleteItem = (listId: string, itemId: string) => {
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId
-          ? { ...l, items: l.items.filter((i) => i.id !== itemId) }
-          : l
-      )
-    );
-  };
-
-  const toggleStar = (listId: string) => {
-    setLists((prev) =>
-      prev.map((l) => ({
-        ...l,
-        starred: l.id === listId ? !l.starred : false,
-      }))
-    );
   };
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -342,18 +250,25 @@ const TodosPage = () => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    setLists((prev) => {
-      const oldIndex = prev.findIndex((l) => l.id === active.id);
-      const newIndex = prev.findIndex((l) => l.id === over.id);
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      const updated = [...prev];
-      const [moved] = updated.splice(oldIndex, 1);
-      updated.splice(newIndex, 0, moved);
-      return updated;
-    });
+    const oldIndex = lists.findIndex((l) => l.id === active.id);
+    const newIndex = lists.findIndex((l) => l.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const updated = [...lists];
+    const [moved] = updated.splice(oldIndex, 1);
+    updated.splice(newIndex, 0, moved);
+    reorderLists(updated);
   };
 
   const activeList = lists.find((l) => l.id === activeId);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <PageHeader title="To Do Lists" subtitle="Keep track of tasks, errands, and reminders" />
+        <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -363,13 +278,12 @@ const TodosPage = () => {
       />
 
       <div className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
-        {/* Create new list */}
         <Card>
           <CardContent className="pt-6">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                addList();
+                handleAddList();
               }}
               className="flex gap-3"
             >
@@ -411,7 +325,7 @@ const TodosPage = () => {
                   deleteList={deleteList}
                   toggleItem={toggleItem}
                   deleteItem={deleteItem}
-                  addItem={addItem}
+                  addItem={handleAddItem}
                   toggleStar={toggleStar}
                   newItemText={newItemTexts[list.id] || ""}
                   setNewItemText={(id, val) =>
