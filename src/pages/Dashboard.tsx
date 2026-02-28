@@ -9,6 +9,8 @@ import FamilyMembersSection from "@/components/family/FamilyMembersSection";
 import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 import { useCalendarData, type CalendarEventRow } from "@/hooks/useCalendarData";
 import { useSpendingData } from "@/hooks/useSpendingData";
+import { useTodoData } from "@/hooks/useTodoData";
+import { useMealData } from "@/hooks/useMealData";
 import { supabase } from "@/integrations/supabase/client";
 import calendarImage from "@/assets/calendar.jpg";
 import emailImage from "@/assets/email.jpg";
@@ -26,9 +28,6 @@ interface InboxEmail {
   snippet: string;
 }
 
-interface TodoItem { id: string; text: string; completed: boolean; }
-interface TodoList { id: string; name: string; items: TodoItem[]; collapsed: boolean; starred?: boolean; }
-interface PlannedMeal { id: string; mealType: string; name: string; }
 interface TasksMember { id: string; name: string; tasks: { id: string; text: string; category: string; }[]; }
 
 const Dashboard = () => {
@@ -36,43 +35,25 @@ const Dashboard = () => {
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useFamilyMembers();
   const { events, detectedEvents, fetchEvents, fetchDetectedEvents } = useCalendarData();
   const { grandTotal, totalByCategory } = useSpendingData(new Date().getFullYear());
+  const { lists: todoLists } = useTodoData();
+  const { mealPlan: plannedMeals } = useMealData();
   const [inboxEmails, setInboxEmails] = useState<InboxEmail[]>([]);
   const [inboxLoading, setInboxLoading] = useState(false);
-
-  // Local storage data
-  const [todoLists, setTodoLists] = useState<TodoList[]>([]);
-  const [plannedMeals, setPlannedMeals] = useState<Record<string, PlannedMeal[]>>({});
   const [taskMembers, setTaskMembers] = useState<TasksMember[]>([]);
 
   useEffect(() => {
     fetchEvents();
     fetchDetectedEvents();
     fetchInbox();
-    loadLocalData();
-  }, [fetchEvents, fetchDetectedEvents]);
-
-  const loadLocalData = () => {
-    // Todo lists
+    // Family tasks still localStorage for now
     try {
-      const raw = localStorage.getItem("parentassist_todo_lists");
-      if (raw) setTodoLists(JSON.parse(raw));
-    } catch {}
-
-    // Planned meals
-    try {
-      const raw = localStorage.getItem("parentassist_meals/planned");
-      if (raw) setPlannedMeals(JSON.parse(raw));
-    } catch {}
-
-    // Family tasks
-    try {
-      const raw = localStorage.getItem("parentassist_tasks/state");
+      const raw = localStorage.getItem("parentassist_family_tasks");
       if (raw) {
         const state = JSON.parse(raw);
         if (state.members) setTaskMembers(state.members);
       }
     } catch {}
-  };
+  }, [fetchEvents, fetchDetectedEvents]);
 
   const fetchInbox = async () => {
     setInboxLoading(true);
