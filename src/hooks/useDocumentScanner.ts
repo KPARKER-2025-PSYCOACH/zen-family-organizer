@@ -9,19 +9,19 @@ export function useDocumentScanner() {
   const scanDocument = useCallback(async (file: File): Promise<number> => {
     setScanning(true);
     try {
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
       let fileContent = "";
 
-      if (file.type === "application/pdf") {
-        // Send PDF as base64 for AI to process - raw text extraction from PDF is unreliable
+      if (isPdf) {
+        // Send raw base64 — Gemini will read the PDF directly via multimodal
         const buffer = await file.arrayBuffer();
         const bytes = new Uint8Array(buffer);
         let binary = "";
         for (let i = 0; i < bytes.length; i++) {
           binary += String.fromCharCode(bytes[i]);
         }
-        fileContent = `[BASE64_PDF]${btoa(binary)}`;
+        fileContent = btoa(binary);
       } else {
-        // Word/text files
         fileContent = await file.text();
       }
 
@@ -29,11 +29,6 @@ export function useDocumentScanner() {
         toast({ title: "Could not read file", variant: "destructive" });
         setScanning(false);
         return 0;
-      }
-
-      // Truncate if very long
-      if (fileContent.length > 10000) {
-        fileContent = fileContent.substring(0, 10000);
       }
 
       const { data: { session } } = await supabase.auth.getSession();
@@ -55,6 +50,7 @@ export function useDocumentScanner() {
           body: JSON.stringify({
             fileName: file.name,
             fileContent,
+            isPdf,
           }),
         }
       );
