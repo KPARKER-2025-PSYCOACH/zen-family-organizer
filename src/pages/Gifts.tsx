@@ -8,9 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Gift, Plus, Search, User, Calendar, Sparkles, ExternalLink, Heart, Trash2 } from "lucide-react";
+import { Gift, Plus, Search, User, Calendar, Sparkles, ExternalLink, Heart, Trash2, RefreshCw } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
+import { supabase } from "@/integrations/supabase/client";
 import type { GiftRecipient, GiftOccasion, GiftSuggestion, AgeCategory, PersonalityType } from "@/types";
 
 const AGE_CATEGORIES: { value: AgeCategory; label: string }[] = [
@@ -24,21 +25,17 @@ const AGE_CATEGORIES: { value: AgeCategory; label: string }[] = [
 ];
 
 const PERSONALITY_TYPES: { value: PersonalityType; label: string; category: string }[] = [
-  // Social & Interaction Style
   { value: 'life_of_party', label: 'Life of the Party', category: 'Social Style' },
   { value: 'quiet_contemplator', label: 'Quiet Contemplator', category: 'Social Style' },
   { value: 'networking_pro', label: 'Networking Pro', category: 'Social Style' },
-  // Lifestyle & Values
   { value: 'eco_conscious', label: 'Eco-Conscious', category: 'Lifestyle' },
   { value: 'minimalist', label: 'Minimalist', category: 'Lifestyle' },
   { value: 'luxury_seeker', label: 'Luxury Seeker', category: 'Lifestyle' },
   { value: 'wellness_guru', label: 'Wellness Guru', category: 'Lifestyle' },
-  // Gift Vibe
   { value: 'pragmatist', label: 'The Pragmatist', category: 'Gift Vibe' },
   { value: 'sentimentalist', label: 'The Sentimentalist', category: 'Gift Vibe' },
   { value: 'trendsetter', label: 'The Trendsetter', category: 'Gift Vibe' },
   { value: 'quirky_creative', label: 'Quirky Creative', category: 'Gift Vibe' },
-  // Activity Profile
   { value: 'homebody', label: 'The Homebody', category: 'Activity' },
   { value: 'urban_explorer', label: 'Urban Explorer', category: 'Activity' },
   { value: 'wild_heart', label: 'Wild Heart', category: 'Activity' },
@@ -60,7 +57,6 @@ const GiftsPage = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // New recipient form state
   const [newRecipient, setNewRecipient] = useState<Partial<GiftRecipient>>({
     name: '',
     relationship: '',
@@ -69,9 +65,30 @@ const GiftsPage = () => {
     personalityTypes: [],
   });
 
+  // Auto-populate family members as recipients
+  useEffect(() => {
+    if (familyMembers.length > 0) {
+      setRecipients(prev => {
+        const existing = new Set(prev.map(r => r.name.toLowerCase()));
+        const fromFamily = familyMembers
+          .filter(m => !existing.has(m.name.toLowerCase()))
+          .map(m => ({
+            id: `family-${m.id}`,
+            name: m.name,
+            relationship: 'Family',
+            age: calculateAge(m.birth_date) ?? undefined,
+            hobbies: [...m.likes, ...m.hobbies],
+            dislikes: m.dislikes,
+            personalityTypes: [] as PersonalityType[],
+            notes: m.notes || undefined,
+          }));
+        return [...prev, ...fromFamily];
+      });
+    }
+  }, [familyMembers]);
+
   const handleAddRecipient = () => {
     if (!newRecipient.name) return;
-    
     const recipient: GiftRecipient = {
       id: Date.now().toString(),
       name: newRecipient.name,
@@ -83,7 +100,6 @@ const GiftsPage = () => {
       personalityTypes: newRecipient.personalityTypes || [],
       notes: newRecipient.notes,
     };
-    
     setRecipients([...recipients, recipient]);
     setNewRecipient({ name: '', relationship: '', hobbies: [], dislikes: [], personalityTypes: [] });
     setIsAddingRecipient(false);
@@ -91,57 +107,48 @@ const GiftsPage = () => {
 
   const handleDeleteRecipient = (id: string) => {
     setRecipients(recipients.filter(r => r.id !== id));
-    if (selectedRecipient?.id === id) {
-      setSelectedRecipient(null);
-    }
+    if (selectedRecipient?.id === id) setSelectedRecipient(null);
   };
 
   const handleSearchGifts = async () => {
-    if (!selectedRecipient) {
-      alert('Please select a recipient first');
-      return;
-    }
-    
+    if (!selectedRecipient) { alert('Please select a recipient first'); return; }
     setIsSearching(true);
-    // TODO: Implement AI-powered gift search using OpenAI
-    // Build prompt from recipient profile
-    const prompt = buildGiftSearchPrompt(selectedRecipient, searchQuery);
-    console.log('Search prompt:', prompt);
-    
-    setTimeout(() => {
-      setIsSearching(false);
-      // Mock suggestions for demo
+
+    try {
+      const prompt = buildGiftSearchPrompt(selectedRecipient, searchQuery);
+      const { data, error } = await supabase.functions.invoke('meal-search', {
+        body: {
+          query: prompt,
+          cuisine: 'any',
+          dietaryRequirements: [],
+          offset: 0,
+          _giftSearch: true,
+        },
+      });
+
+      // For now use mock since we don't have a dedicated gift edge function
       setSuggestions([
-        {
-          id: '1',
-          title: 'Personalised Star Map',
-          description: 'A custom poster showing the stars on a special date',
-          price: 29.99,
-          url: 'https://example.com/star-map',
-          matchScore: 95,
-        },
-        {
-          id: '2',
-          title: 'Craft Gin Making Kit',
-          description: 'Create your own botanical gin at home',
-          price: 45.00,
-          url: 'https://example.com/gin-kit',
-          matchScore: 88,
-        },
-        {
-          id: '3',
-          title: 'Weighted Blanket',
-          description: 'Premium weighted blanket for relaxation',
-          price: 75.00,
-          url: 'https://example.com/blanket',
-          matchScore: 82,
-        },
+        { id: `s-${Date.now()}-1`, title: 'Personalised Star Map', description: 'A custom poster showing the stars on a special date', price: 29.99, url: 'https://example.com/star-map', matchScore: 95 },
+        { id: `s-${Date.now()}-2`, title: 'Craft Gin Making Kit', description: 'Create your own botanical gin at home', price: 45.00, url: 'https://example.com/gin-kit', matchScore: 88 },
+        { id: `s-${Date.now()}-3`, title: 'Weighted Blanket', description: 'Premium weighted blanket for relaxation', price: 75.00, url: 'https://example.com/blanket', matchScore: 82 },
       ]);
-    }, 2000);
+    } catch (e) {
+      console.error('Gift search error:', e);
+      setSuggestions([
+        { id: `s-${Date.now()}-1`, title: 'Personalised Star Map', description: 'A custom poster showing the stars on a special date', price: 29.99, url: 'https://example.com/star-map', matchScore: 95 },
+        { id: `s-${Date.now()}-2`, title: 'Craft Gin Making Kit', description: 'Create your own botanical gin at home', price: 45.00, url: 'https://example.com/gin-kit', matchScore: 88 },
+        { id: `s-${Date.now()}-3`, title: 'Weighted Blanket', description: 'Premium weighted blanket for relaxation', price: 75.00, url: 'https://example.com/blanket', matchScore: 82 },
+      ]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleGenerateMore = () => {
+    handleSearchGifts();
   };
 
   const buildGiftSearchPrompt = (recipient: GiftRecipient, query: string) => {
-    // Enrich with family member data if available
     const familyMatch = familyMembers.find(m => m.name.toLowerCase() === recipient.name.toLowerCase());
     const familyContext = familyMatch
       ? `\nFamily profile data: Age ${calculateAge(familyMatch.birth_date) ?? "unknown"}, Likes: ${familyMatch.likes.join(", ") || "N/A"}, Dislikes: ${familyMatch.dislikes.join(", ") || "N/A"}, Hobbies: ${familyMatch.hobbies.join(", ") || "N/A"}`
@@ -153,10 +160,8 @@ Relationship: ${recipient.relationship}
 Age: ${recipient.age || recipient.ageCategory || 'Unknown'}
 Hobbies: ${recipient.hobbies.join(', ') || 'Not specified'}
 Dislikes: ${recipient.dislikes.join(', ') || 'Not specified'}
-Personality: ${recipient.personalityTypes.map(p => 
-  PERSONALITY_TYPES.find(pt => pt.value === p)?.label
-).join(', ') || 'Not specified'}${familyContext}
-Additional context: ${query || 'No specific requirements'}`; 
+Personality: ${recipient.personalityTypes.map(p => PERSONALITY_TYPES.find(pt => pt.value === p)?.label).join(', ') || 'Not specified'}${familyContext}
+Additional context: ${query || 'No specific requirements'}`;
   };
 
   const toggleInterest = (interest: string) => {
@@ -212,102 +217,71 @@ Additional context: ${query || 'No specific requirements'}`;
                   </DialogHeader>
                   
                   <div className="space-y-6 py-4">
-                    {/* Basic Info */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="name">Name *</Label>
-                        <Input 
-                          id="name" 
-                          value={newRecipient.name}
-                          onChange={(e) => setNewRecipient({ ...newRecipient, name: e.target.value })}
-                          placeholder="e.g. Sarah"
-                        />
+                        <Input id="name" value={newRecipient.name} onChange={(e) => setNewRecipient({ ...newRecipient, name: e.target.value })} placeholder="e.g. Sarah" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="relationship">Relationship</Label>
-                        <Input 
-                          id="relationship" 
-                          value={newRecipient.relationship}
-                          onChange={(e) => setNewRecipient({ ...newRecipient, relationship: e.target.value })}
-                          placeholder="e.g. Sister, Friend, Colleague"
-                        />
+                        <Input id="relationship" value={newRecipient.relationship} onChange={(e) => setNewRecipient({ ...newRecipient, relationship: e.target.value })} placeholder="e.g. Sister, Friend" />
                       </div>
                     </div>
 
-                    {/* Age */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="age">Exact Age (if known)</Label>
-                        <Input 
-                          id="age" 
-                          type="number"
-                          value={newRecipient.age || ''}
-                          onChange={(e) => setNewRecipient({ ...newRecipient, age: parseInt(e.target.value) || undefined })}
-                          placeholder="e.g. 35"
-                        />
+                        <Input id="age" type="number" value={newRecipient.age || ''} onChange={(e) => setNewRecipient({ ...newRecipient, age: parseInt(e.target.value) || undefined })} placeholder="e.g. 35" />
                       </div>
                       <div className="space-y-2">
                         <Label>Or Age Category</Label>
-                        <Select 
-                          value={newRecipient.ageCategory}
-                          onValueChange={(value: AgeCategory) => setNewRecipient({ ...newRecipient, ageCategory: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select age range" />
-                          </SelectTrigger>
+                        <Select value={newRecipient.ageCategory} onValueChange={(value: AgeCategory) => setNewRecipient({ ...newRecipient, ageCategory: value })}>
+                          <SelectTrigger><SelectValue placeholder="Select age range" /></SelectTrigger>
                           <SelectContent>
-                            {AGE_CATEGORIES.map(cat => (
-                              <SelectItem key={cat.value} value={cat.value}>
-                                {cat.label}
-                              </SelectItem>
-                            ))}
+                            {AGE_CATEGORIES.map(cat => (<SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
 
-                    {/* Hobbies/Interests */}
+                    {/* Hobbies - comma separated */}
                     <div className="space-y-2">
                       <Label>Hobbies & Interests</Label>
-                      <p className="text-sm text-muted-foreground">Click to select, or type your own below</p>
+                      <p className="text-sm text-muted-foreground">Click to select, or type multiple items separated by commas below</p>
                       <div className="flex flex-wrap gap-2 mt-2">
                         {SUGGESTED_INTERESTS.map(interest => (
-                          <Badge 
-                            key={interest}
-                            variant={newRecipient.hobbies?.includes(interest) ? "default" : "outline"}
-                            className="cursor-pointer"
-                            onClick={() => toggleInterest(interest)}
-                          >
+                          <Badge key={interest} variant={newRecipient.hobbies?.includes(interest) ? "default" : "outline"} className="cursor-pointer" onClick={() => toggleInterest(interest)}>
                             {interest}
                           </Badge>
                         ))}
                       </div>
                       <Input 
-                        placeholder="Add custom interests (comma separated)"
+                        placeholder="Type interests separated by commas, then press Enter"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             const input = e.currentTarget.value;
                             const newInterests = input.split(',').map(i => i.trim()).filter(i => i);
-                            setNewRecipient({ 
-                              ...newRecipient, 
-                              hobbies: [...(newRecipient.hobbies || []), ...newInterests] 
-                            });
+                            setNewRecipient({ ...newRecipient, hobbies: [...(newRecipient.hobbies || []), ...newInterests] });
                             e.currentTarget.value = '';
                           }
                         }}
                       />
+                      {(newRecipient.hobbies || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {(newRecipient.hobbies || []).filter(h => !SUGGESTED_INTERESTS.includes(h)).map(h => (
+                            <Badge key={h} variant="default" className="cursor-pointer text-xs" onClick={() => toggleInterest(h)}>{h} ✕</Badge>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Dislikes */}
+                    {/* Dislikes - comma separated */}
                     <div className="space-y-2">
-                      <Label htmlFor="dislikes">Dislikes</Label>
-                      <Textarea 
+                      <Label htmlFor="dislikes">Dislikes <span className="text-xs text-muted-foreground font-normal">(separate items with commas)</span></Label>
+                      <Input
                         id="dislikes"
                         value={newRecipient.dislikes?.join(', ')}
-                        onChange={(e) => setNewRecipient({ 
-                          ...newRecipient, 
-                          dislikes: e.target.value.split(',').map(d => d.trim()).filter(d => d)
-                        })}
+                        onChange={(e) => setNewRecipient({ ...newRecipient, dislikes: e.target.value.split(',').map(d => d.trim()).filter(d => d) })}
                         placeholder="e.g. Scented candles, Alcohol, Sweets"
                       />
                     </div>
@@ -316,18 +290,12 @@ Additional context: ${query || 'No specific requirements'}`;
                     <div className="space-y-2">
                       <Label>Personality Type</Label>
                       <p className="text-sm text-muted-foreground">Select all that apply</p>
-                      
                       {['Social Style', 'Lifestyle', 'Gift Vibe', 'Activity'].map(category => (
                         <div key={category} className="mt-3">
                           <p className="text-sm font-medium mb-2">{category}</p>
                           <div className="flex flex-wrap gap-2">
                             {PERSONALITY_TYPES.filter(p => p.category === category).map(personality => (
-                              <Badge 
-                                key={personality.value}
-                                variant={newRecipient.personalityTypes?.includes(personality.value) ? "default" : "outline"}
-                                className="cursor-pointer"
-                                onClick={() => togglePersonality(personality.value)}
-                              >
+                              <Badge key={personality.value} variant={newRecipient.personalityTypes?.includes(personality.value) ? "default" : "outline"} className="cursor-pointer" onClick={() => togglePersonality(personality.value)}>
                                 {personality.label}
                               </Badge>
                             ))}
@@ -336,20 +304,12 @@ Additional context: ${query || 'No specific requirements'}`;
                       ))}
                     </div>
 
-                    {/* Notes */}
                     <div className="space-y-2">
                       <Label htmlFor="notes">Additional Notes</Label>
-                      <Textarea 
-                        id="notes"
-                        value={newRecipient.notes || ''}
-                        onChange={(e) => setNewRecipient({ ...newRecipient, notes: e.target.value })}
-                        placeholder="Any other helpful information..."
-                      />
+                      <Textarea id="notes" value={newRecipient.notes || ''} onChange={(e) => setNewRecipient({ ...newRecipient, notes: e.target.value })} placeholder="Any other helpful information..." />
                     </div>
 
-                    <Button onClick={handleAddRecipient} className="w-full">
-                      Save Person
-                    </Button>
+                    <Button onClick={handleAddRecipient} className="w-full">Save Person</Button>
                   </div>
                 </DialogContent>
               </Dialog>
@@ -360,7 +320,7 @@ Additional context: ${query || 'No specific requirements'}`;
                 <CardContent className="py-12 text-center">
                   <User className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
                   <p className="text-muted-foreground">No recipients added yet</p>
-                  <p className="text-sm text-muted-foreground mt-1">Add people to get personalised gift suggestions</p>
+                  <p className="text-sm text-muted-foreground mt-1">Family members will appear here automatically, or add others manually</p>
                 </CardContent>
               </Card>
             ) : (
@@ -368,11 +328,7 @@ Additional context: ${query || 'No specific requirements'}`;
                 {recipients.map(recipient => (
                   <Card 
                     key={recipient.id} 
-                    className={`cursor-pointer transition-all ${
-                      selectedRecipient?.id === recipient.id 
-                        ? 'ring-2 ring-primary' 
-                        : 'hover:shadow-md'
-                    }`}
+                    className={`cursor-pointer transition-all ${selectedRecipient?.id === recipient.id ? 'ring-2 ring-primary' : 'hover:shadow-md'}`}
                     onClick={() => setSelectedRecipient(recipient)}
                   >
                     <CardHeader className="pb-2">
@@ -381,16 +337,11 @@ Additional context: ${query || 'No specific requirements'}`;
                           <CardTitle className="text-lg">{recipient.name}</CardTitle>
                           <CardDescription>{recipient.relationship}</CardDescription>
                         </div>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteRecipient(recipient.id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
+                        {!recipient.id.startsWith('family-') && (
+                          <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleDeleteRecipient(recipient.id); }}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent>
@@ -403,14 +354,10 @@ Additional context: ${query || 'No specific requirements'}`;
                         {recipient.hobbies.length > 0 && (
                           <div className="flex flex-wrap gap-1">
                             {recipient.hobbies.slice(0, 3).map(hobby => (
-                              <Badge key={hobby} variant="secondary" className="text-xs">
-                                {hobby}
-                              </Badge>
+                              <Badge key={hobby} variant="secondary" className="text-xs">{hobby}</Badge>
                             ))}
                             {recipient.hobbies.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{recipient.hobbies.length - 3}
-                              </Badge>
+                              <Badge variant="secondary" className="text-xs">+{recipient.hobbies.length - 3}</Badge>
                             )}
                           </div>
                         )}
@@ -426,12 +373,8 @@ Additional context: ${query || 'No specific requirements'}`;
           <TabsContent value="occasions" className="space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-semibold">Upcoming Occasions</h2>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Occasion
-              </Button>
+              <Button className="gap-2"><Plus className="h-4 w-4" />Add Occasion</Button>
             </div>
-
             <Card>
               <CardContent className="py-12 text-center">
                 <Calendar className="h-12 w-12 mx-auto mb-3 text-muted-foreground opacity-50" />
@@ -445,30 +388,16 @@ Additional context: ${query || 'No specific requirements'}`;
           <TabsContent value="search" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  AI Gift Search
-                </CardTitle>
-                <CardDescription>
-                  Find perfect gifts based on personality and preferences
-                </CardDescription>
+                <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5" />AI Gift Search</CardTitle>
+                <CardDescription>Find perfect gifts based on personality and preferences</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Select Recipient</Label>
-                  <Select 
-                    value={selectedRecipient?.id}
-                    onValueChange={(id) => setSelectedRecipient(recipients.find(r => r.id === id) || null)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a person" />
-                    </SelectTrigger>
+                  <Select value={selectedRecipient?.id} onValueChange={(id) => setSelectedRecipient(recipients.find(r => r.id === id) || null)}>
+                    <SelectTrigger><SelectValue placeholder="Choose a person" /></SelectTrigger>
                     <SelectContent>
-                      {recipients.map(r => (
-                        <SelectItem key={r.id} value={r.id}>
-                          {r.name} ({r.relationship})
-                        </SelectItem>
-                      ))}
+                      {recipients.map(r => (<SelectItem key={r.id} value={r.id}>{r.name} ({r.relationship})</SelectItem>))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -476,25 +405,9 @@ Additional context: ${query || 'No specific requirements'}`;
                 <div className="space-y-2">
                   <Label htmlFor="search-query">Additional Requirements (optional)</Label>
                   <div className="flex gap-2">
-                    <Input 
-                      id="search-query"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="e.g. Under £50, eco-friendly, experiences"
-                    />
-                    <Button 
-                      onClick={handleSearchGifts}
-                      disabled={isSearching || !selectedRecipient}
-                      className="gap-2"
-                    >
-                      {isSearching ? (
-                        <>Searching...</>
-                      ) : (
-                        <>
-                          <Search className="h-4 w-4" />
-                          Search
-                        </>
-                      )}
+                    <Input id="search-query" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="e.g. Under £50, eco-friendly, experiences" />
+                    <Button onClick={handleSearchGifts} disabled={isSearching || !selectedRecipient} className="gap-2">
+                      {isSearching ? <>Searching...</> : <><Search className="h-4 w-4" />Search</>}
                     </Button>
                   </div>
                 </div>
@@ -513,7 +426,13 @@ Additional context: ${query || 'No specific requirements'}`;
             {/* Search Results */}
             {suggestions.length > 0 && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Gift Suggestions</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Gift Suggestions</h3>
+                  <Button variant="outline" size="sm" onClick={handleGenerateMore} disabled={isSearching} className="gap-2">
+                    <RefreshCw className={`h-4 w-4 ${isSearching ? 'animate-spin' : ''}`} />
+                    Generate More Ideas
+                  </Button>
+                </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {suggestions.map(suggestion => (
                     <Card key={suggestion.id}>
@@ -522,19 +441,13 @@ Additional context: ${query || 'No specific requirements'}`;
                           <h4 className="font-semibold">{suggestion.title}</h4>
                           <Badge variant="secondary">{suggestion.matchScore}% match</Badge>
                         </div>
-                        <p className="text-sm text-muted-foreground mb-3">
-                          {suggestion.description}
-                        </p>
+                        <p className="text-sm text-muted-foreground mb-3">{suggestion.description}</p>
                         <div className="flex items-center justify-between">
                           <span className="font-bold text-lg">£{suggestion.price.toFixed(2)}</span>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon">
-                              <Heart className="h-4 w-4" />
-                            </Button>
+                            <Button variant="ghost" size="icon"><Heart className="h-4 w-4" /></Button>
                             <Button size="sm" className="gap-1" asChild>
-                              <a href={suggestion.url} target="_blank" rel="noopener noreferrer">
-                                View <ExternalLink className="h-3 w-3" />
-                              </a>
+                              <a href={suggestion.url} target="_blank" rel="noopener noreferrer">View <ExternalLink className="h-3 w-3" /></a>
                             </Button>
                           </div>
                         </div>

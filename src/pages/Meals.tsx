@@ -468,53 +468,19 @@ const MealsPage = () => {
               </Card>
             )}
 
-            <div className="grid gap-4">
-              {DAYS_OF_WEEK.map(day => (
-                <Card key={day} className="shadow-soft">
-                  <CardContent className="py-4">
-                    <div className="font-medium text-base mb-3">{day}</div>
-                    <div className="space-y-3">
-                      {visibleMealTypes.map(mealType => {
-                        const meals = getMealsForDayType(day, mealType);
-                        return (
-                          <div key={mealType}>
-                            {visibleMealTypes.length > 1 && (
-                              <p className="text-xs text-muted-foreground font-medium mb-1">{MEAL_TYPE_INFO[mealType].icon} {MEAL_TYPE_INFO[mealType].label}</p>
-                            )}
-                            <div className="space-y-1">
-                              {meals.map(meal => (
-                                <div key={meal.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/40 border">
-                                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                                    <p className="font-medium text-sm truncate">{meal.name}</p>
-                                    {meal.recipe && (
-                                      <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                                        <Clock className="h-3 w-3" />
-                                        {meal.recipe.prepTime + meal.recipe.cookTime}m
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => removeMealFromPlan(day, meal.id)}>
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              ))}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="w-full justify-start text-muted-foreground hover:text-foreground h-8 text-xs"
-                                onClick={() => openDayDialog(day, mealType)}
-                              >
-                                <Plus className="h-3.5 w-3.5 mr-1" />
-                                {meals.length === 0 ? `Add ${mealType}...` : 'Add another...'}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="space-y-4">
+              {/* Row 1: Mon-Thu */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {DAYS_OF_WEEK.slice(0, 4).map(day => (
+                  <DayCard key={day} day={day} visibleMealTypes={visibleMealTypes} getMealsForDayType={getMealsForDayType} openDayDialog={openDayDialog} removeMealFromPlan={removeMealFromPlan} />
+                ))}
+              </div>
+              {/* Row 2: Fri-Sun */}
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                {DAYS_OF_WEEK.slice(4).map(day => (
+                  <DayCard key={day} day={day} visibleMealTypes={visibleMealTypes} getMealsForDayType={getMealsForDayType} openDayDialog={openDayDialog} removeMealFromPlan={removeMealFromPlan} />
+                ))}
+              </div>
             </div>
 
             {/* Add meal dialog */}
@@ -735,6 +701,51 @@ const RecipeCard = ({ recipe, onView, onEdit, onAddToDay, onDelete }: { recipe: 
   </Card>
 );
 
-const CUISINE_TYPES_EXPORT = CUISINE_TYPES;
+// ============ Day Card for horizontal planner ============
+
+const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, removeMealFromPlan }: {
+  day: string;
+  visibleMealTypes: MealType[];
+  getMealsForDayType: (day: string, mealType: MealType) => { id: string; name: string; recipe?: any; mealType: string }[];
+  openDayDialog: (day: string, mealType: MealType) => void;
+  removeMealFromPlan: (day: string, mealId: string) => void;
+}) => (
+  <Card className="shadow-soft">
+    <CardContent className="py-3 px-3">
+      <div className="font-medium text-sm mb-2 text-center border-b pb-1">{day}</div>
+      <div className="space-y-2">
+        {visibleMealTypes.map(mealType => {
+          const meals = getMealsForDayType(day, mealType);
+          return (
+            <div key={mealType}>
+              {visibleMealTypes.length > 1 && (
+                <p className="text-[10px] text-muted-foreground font-medium mb-0.5">{MEAL_TYPE_INFO[mealType].icon} {MEAL_TYPE_INFO[mealType].label}</p>
+              )}
+              <div className="space-y-1">
+                {meals.map(meal => (
+                  <div key={meal.id} className="flex items-center justify-between p-1.5 rounded bg-secondary/40 border text-xs">
+                    <span className="truncate flex-1">{meal.name}</span>
+                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeMealFromPlan(day, meal.id)}>
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-center text-muted-foreground hover:text-foreground h-6 text-[10px]"
+                  onClick={() => openDayDialog(day, mealType)}
+                >
+                  <Plus className="h-3 w-3 mr-0.5" />
+                  Add
+                </Button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 export default MealsPage;

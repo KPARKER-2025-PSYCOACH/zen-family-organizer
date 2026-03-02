@@ -9,6 +9,7 @@ import { useCalendarData } from "@/hooks/useCalendarData";
 import { useDocumentScanner } from "@/hooks/useDocumentScanner";
 import AddEventDialog from "@/components/calendar/AddEventDialog";
 import DetectedEventsDialog from "@/components/calendar/DetectedEventsDialog";
+import WeeklyPlanner from "@/components/calendar/WeeklyPlanner";
 
 const CATEGORY_COLORS: Record<string, string> = {
   school: "bg-blue-100 text-blue-800 border-blue-200",
@@ -335,6 +336,11 @@ const CalendarPage = () => {
                 </div>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Weekly Planner */}
+          <div className="lg:col-span-2">
+            <WeeklyPlanner weekStart={date || new Date()} />
           </div>
         </div>
       </div>

@@ -11,6 +11,8 @@ import {
   ListChecks,
   GripVertical,
   Star,
+  Pencil,
+  Check,
 } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
@@ -51,6 +53,8 @@ interface SortableListCardProps {
   deleteItem: (listId: string, itemId: string) => void;
   addItem: (listId: string, text: string) => void;
   toggleStar: (id: string) => void;
+  renameList: (id: string, name: string) => void;
+  updateItemText: (listId: string, itemId: string, text: string) => void;
   newItemText: string;
   setNewItemText: (listId: string, value: string) => void;
   inputRef: (listId: string, el: HTMLInputElement | null) => void;
@@ -64,6 +68,8 @@ const SortableListCard = ({
   deleteItem,
   addItem,
   toggleStar,
+  renameList,
+  updateItemText,
   newItemText,
   setNewItemText,
   inputRef,
@@ -77,6 +83,11 @@ const SortableListCard = ({
     isDragging,
   } = useSortable({ id: list.id });
 
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(list.name);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemDraft, setItemDraft] = useState("");
+
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -85,6 +96,24 @@ const SortableListCard = ({
 
   const completedCount = list.items.filter((i) => i.completed).length;
   const totalCount = list.items.length;
+
+  const commitTitle = () => {
+    const trimmed = titleDraft.trim();
+    if (trimmed && trimmed !== list.name) renameList(list.id, trimmed);
+    setEditingTitle(false);
+  };
+
+  const startEditItem = (itemId: string, text: string) => {
+    setEditingItemId(itemId);
+    setItemDraft(text);
+  };
+
+  const commitItemEdit = () => {
+    if (editingItemId && itemDraft.trim()) {
+      updateItemText(list.id, editingItemId, itemDraft.trim());
+    }
+    setEditingItemId(null);
+  };
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -101,23 +130,50 @@ const SortableListCard = ({
               <GripVertical className="h-4 w-4" />
             </button>
 
-            <button
-              type="button"
-              onClick={() => toggleCollapse(list.id)}
-              className="flex items-center gap-2 text-left flex-1 min-w-0"
-            >
-              {list.collapsed ? (
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" />
-              )}
-              <CardTitle className="truncate">{list.name}</CardTitle>
-              {totalCount > 0 && (
-                <span className="text-sm font-normal text-muted-foreground shrink-0">
-                  {completedCount}/{totalCount}
-                </span>
-              )}
-            </button>
+            {editingTitle ? (
+              <form onSubmit={e => { e.preventDefault(); commitTitle(); }} className="flex items-center gap-2 flex-1 min-w-0">
+                <Input
+                  value={titleDraft}
+                  onChange={e => setTitleDraft(e.target.value)}
+                  onBlur={commitTitle}
+                  autoFocus
+                  className="h-8 text-sm font-semibold"
+                />
+                <Button type="submit" size="icon" variant="ghost" className="h-7 w-7 shrink-0">
+                  <Check className="h-4 w-4" />
+                </Button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={() => toggleCollapse(list.id)}
+                onDoubleClick={(e) => { e.stopPropagation(); setTitleDraft(list.name); setEditingTitle(true); }}
+                className="flex items-center gap-2 text-left flex-1 min-w-0"
+              >
+                {list.collapsed ? (
+                  <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" />
+                )}
+                <CardTitle className="truncate">{list.name}</CardTitle>
+                {totalCount > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground shrink-0">
+                    {completedCount}/{totalCount}
+                  </span>
+                )}
+              </button>
+            )}
+
+            {!editingTitle && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="shrink-0"
+                onClick={() => { setTitleDraft(list.name); setEditingTitle(true); }}
+              >
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+            )}
 
             <Button
               variant="ghost"
@@ -164,23 +220,51 @@ const SortableListCard = ({
                   checked={item.completed}
                   onCheckedChange={() => toggleItem(list.id, item.id)}
                 />
-                <span
-                  className={`flex-1 text-sm ${
-                    item.completed
-                      ? "line-through text-muted-foreground"
-                      : ""
-                  }`}
-                >
-                  {item.text}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => deleteItem(list.id, item.id)}
-                >
-                  <Trash2 className="h-3 w-3 text-muted-foreground" />
-                </Button>
+                {editingItemId === item.id ? (
+                  <form onSubmit={e => { e.preventDefault(); commitItemEdit(); }} className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={itemDraft}
+                      onChange={e => setItemDraft(e.target.value)}
+                      onBlur={commitItemEdit}
+                      autoFocus
+                      className="h-7 text-sm"
+                    />
+                    <Button type="submit" size="icon" variant="ghost" className="h-6 w-6">
+                      <Check className="h-3 w-3" />
+                    </Button>
+                  </form>
+                ) : (
+                  <span
+                    className={`flex-1 text-sm cursor-pointer ${
+                      item.completed
+                        ? "line-through text-muted-foreground"
+                        : ""
+                    }`}
+                    onDoubleClick={() => startEditItem(item.id, item.text)}
+                  >
+                    {item.text}
+                  </span>
+                )}
+                {editingItemId !== item.id && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => startEditItem(item.id, item.text)}
+                    >
+                      <Pencil className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => deleteItem(list.id, item.id)}
+                    >
+                      <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </>
+                )}
               </div>
             ))}
 
@@ -219,7 +303,7 @@ const SortableListCard = ({
 
 /* ── Page ── */
 const TodosPage = () => {
-  const { lists, loading, addList, deleteList, toggleCollapse, toggleStar, reorderLists, addItem, toggleItem, deleteItem } = useTodoData();
+  const { lists, loading, addList, deleteList, toggleCollapse, toggleStar, reorderLists, addItem, toggleItem, deleteItem, renameList, updateItemText } = useTodoData();
   const [newListName, setNewListName] = useState("");
   const [newItemTexts, setNewItemTexts] = useState<Record<string, string>>({});
   const newItemRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -327,6 +411,8 @@ const TodosPage = () => {
                   deleteItem={deleteItem}
                   addItem={handleAddItem}
                   toggleStar={toggleStar}
+                  renameList={renameList}
+                  updateItemText={updateItemText}
                   newItemText={newItemTexts[list.id] || ""}
                   setNewItemText={(id, val) =>
                     setNewItemTexts((prev) => ({ ...prev, [id]: val }))

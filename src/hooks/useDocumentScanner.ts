@@ -9,23 +9,17 @@ export function useDocumentScanner() {
   const scanDocument = useCallback(async (file: File): Promise<number> => {
     setScanning(true);
     try {
-      // Read file as text
       let fileContent = "";
 
       if (file.type === "application/pdf") {
-        // For PDF, we send the base64 content and let AI handle it
+        // Send PDF as base64 for AI to process - raw text extraction from PDF is unreliable
         const buffer = await file.arrayBuffer();
         const bytes = new Uint8Array(buffer);
-        // Extract text from PDF (basic text extraction)
-        const textDecoder = new TextDecoder("utf-8", { fatal: false });
-        fileContent = textDecoder.decode(bytes);
-        // Clean up binary noise - keep only printable chars
-        fileContent = fileContent.replace(/[^\\x20-\\x7E\\n\\r\\t]/g, " ").replace(/\\s{3,}/g, " ").trim();
-        if (fileContent.length < 50) {
-          toast({ title: "PDF may be image-based", description: "Text extraction limited for scanned PDFs", variant: "destructive" });
-          setScanning(false);
-          return 0;
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) {
+          binary += String.fromCharCode(bytes[i]);
         }
+        fileContent = `[BASE64_PDF]${btoa(binary)}`;
       } else {
         // Word/text files
         fileContent = await file.text();

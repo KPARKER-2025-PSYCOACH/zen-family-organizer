@@ -133,5 +133,17 @@ export const useTodoData = () => {
     ));
   };
 
-  return { lists, loading, addList, deleteList, toggleCollapse, toggleStar, reorderLists, addItem, toggleItem, deleteItem };
+  const renameList = async (listId: string, name: string) => {
+    setLists(prev => prev.map(l => l.id === listId ? { ...l, name } : l));
+    await supabase.from("todo_lists").update({ name }).eq("id", listId);
+  };
+
+  const updateItemText = async (listId: string, itemId: string, text: string) => {
+    setLists(prev => prev.map(l =>
+      l.id === listId ? { ...l, items: l.items.map(i => i.id === itemId ? { ...i, text } : i) } : l
+    ));
+    await supabase.from("todo_items").update({ text }).eq("id", itemId);
+  };
+
+  return { lists, loading, addList, deleteList, toggleCollapse, toggleStar, reorderLists, addItem, toggleItem, deleteItem, renameList, updateItemText };
 };
