@@ -35,7 +35,7 @@ serve(async (req) => {
       });
     }
 
-    const { fileName, fileContent } = await req.json();
+    const { fileName, fileContent, isPdf } = await req.json();
 
     if (!fileContent) {
       return new Response(JSON.stringify({ error: "No file content provided" }), {
@@ -44,68 +44,67 @@ serve(async (req) => {
       });
     }
 
-    // Handle base64 PDF: extract text using a simpler approach
-    let textContent = fileContent;
-    if (fileContent.startsWith("[BASE64_PDF]")) {
-      const base64Data = fileContent.replace("[BASE64_PDF]", "");
-      // Decode base64 to binary
-      const binaryStr = atob(base64Data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      // Extract readable text from PDF binary
-      const decoder = new TextDecoder("utf-8", { fatal: false });
-      const rawText = decoder.decode(bytes);
-      
-      // Extract text between PDF stream markers and parentheses (PDF text objects)
-      const textParts: string[] = [];
-      
-      // Method 1: Extract text from PDF text objects (Tj and TJ operators)
-      const tjMatches = rawText.matchAll(/\(([^)]*)\)\s*Tj/g);
-      for (const m of tjMatches) {
-        textParts.push(m[1]);
-      }
-      
-      // Method 2: Extract from BT...ET text blocks
-      const btBlocks = rawText.matchAll(/BT\s*([\s\S]*?)\s*ET/g);
-      for (const block of btBlocks) {
-        const innerText = block[1].matchAll(/\(([^)]*)\)/g);
-        for (const t of innerText) {
-          if (t[1].length > 1) textParts.push(t[1]);
-        }
-      }
-      
-      // Method 3: Fallback - extract any printable text sequences
-      if (textParts.length === 0) {
-        const printable = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, " ");
-        // Find date-like patterns and their surrounding context
-        const dateContexts = printable.matchAll(/(.{0,50}(?:\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}|\d{1,2}(?:st|nd|rd|th)?\s+(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{2,4}).{0,50})/gi;
-        for (const dc of dateContexts) {
-          textParts.push(dc[0].trim());
-        }
-        // Also include general readable text
-        if (textParts.length === 0) {
-          textParts.push(printable.trim());
-        }
-      }
-      
-      textContent = textParts.join(" ").trim();
-      
-      if (textContent.length < 10) {
-        // Last resort: send the raw printable text
-        textContent = rawText.replace(/[^\x20-\x7E\n\r\t]/g, " ").replace(/\s{3,}/g, " ").trim();
-      }
-    }
-
-    // Truncate if very long
-    if (textContent.length > 15000) {
-      textContent = textContent.substring(0, 15000);
-    }
-
-    // Use AI to extract dates/events from document text
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    const systemPrompt = `You are an expert at reading documents and extracting calendar events.
+
+CRITICAL RULES:
+- ONLY extract events that are EXPLICITLY written in the document with specific dates.
+- DO NOT invent, guess, or hallucinate events. If a date has no associated event description, skip it.
+- If the document contains no events with dates, return an empty array [].
+- UK date format (DD/MM/YYYY) is the DEFAULT. So 18/09/2026 means 18th September 2026.
+- Look for ALL date formats: DD/MM/YYYY, DD-MM-YYYY, "18th April 2026", "March 3, 2026", etc.
+
+Return a JSON array of detected events. Each event must have:
+- title (string - use the EXACT description from the document, do not paraphrase or invent)
+- detected_date (ISO datetime string, e.g. "2026-09-18T00:00:00")
+- detected_end_date (ISO datetime string or null)
+- confidence ("high" if date/time are explicit, "medium" if inferred)
+- category ("school", "health", "travel", "birthday", "meal", "work", "personal", "other")
+- suggest_gift (boolean, true only for birthdays/celebrations)
+- gift_reason (string or null)
+- description (brief context QUOTED from the document)
+
+Return ONLY a valid JSON array. No markdown, no explanation. If no events found, return [].`;
+
+    // Build messages based on whether this is a PDF (use multimodal) or text
+    let messages: any[];
+
+    if (isPdf) {
+      // Use Gemini multimodal: send PDF as inline_data so the model reads it directly
+      messages = [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: `Read this PDF document (filename: "${fileName}") and extract ONLY events with specific dates that are actually written in it. Do NOT make up events.`,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:application/pdf;base64,${fileContent}`,
+              },
+            },
+          ],
+        },
+      ];
+    } else {
+      // Plain text content
+      let textContent = fileContent;
+      if (textContent.length > 15000) {
+        textContent = textContent.substring(0, 15000);
+      }
+      messages = [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content: `Document filename: ${fileName}\n\nExtract ONLY events with specific dates from this document. Do NOT invent events:\n\n${textContent}`,
+        },
+      ];
+    }
 
     const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -115,46 +114,19 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert at reading document contents and extracting calendar events. 
-
-IMPORTANT: Ignore the document filename entirely. Focus ONLY on reading the actual text content of the document to find events, appointments, deadlines, meetings, or any activities with specific dates and times.
-
-CRITICAL DATE PARSING RULES:
-- Dates may be in ANY format: DD/MM/YYYY, DD-MM-YYYY, "18th April 2026", "March 3, 2026", "3rd Mar 2026", etc.
-- UK date format (DD/MM/YYYY) is the DEFAULT. So 18/09/2026 means 18th September 2026, NOT September 18th.
-- Always convert dates to ISO format in your output.
-- Look carefully for ALL dates in the text, even if they appear within sentences or paragraphs.
-
-Return a JSON array of detected events. Each event must have:
-- title (string, clear descriptive name of the event based on document content)
-- detected_date (ISO datetime string, e.g. "2026-09-18T00:00:00". If only a date is found with no time, use T00:00:00)
-- detected_end_date (ISO datetime string or null. If a duration or end time is mentioned, include it)
-- confidence ("high" if date/time are explicit, "medium" if inferred from context, "low" if ambiguous)
-- category ("school", "health", "travel", "birthday", "meal", "work", "personal", "other")
-- suggest_gift (boolean, true only if it's a birthday or celebration)
-- gift_reason (string or null, e.g. "Birthday party")
-- description (brief context extracted from the document about this event)
-
-Rules:
-- Only include events with specific dates found in the document text
-- Extract times when mentioned (e.g. "3pm", "15:00", "morning drop-off at 8:30")
-- If a time range is given (e.g. "2-4pm"), set both detected_date and detected_end_date with correct times
-- Return ONLY a valid JSON array, no markdown, no explanation
-- If text seems garbled or partial, still try to find any dates and associated context`,
-          },
-          {
-            role: "user",
-            content: `Document filename: ${fileName}\n\nRead the following document content carefully and extract ALL events, appointments, and dates:\n\n${textContent}`,
-          },
-        ],
+        messages,
       }),
     });
 
     if (!aiRes.ok) {
-      console.error("AI error:", await aiRes.text());
+      const errText = await aiRes.text();
+      console.error("AI error:", aiRes.status, errText);
+      if (aiRes.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limited, please try again shortly" }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(JSON.stringify({ error: "AI analysis failed" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -173,12 +145,14 @@ Rules:
       detectedEvents = [];
     }
 
+    // Filter out any events without a valid date
+    detectedEvents = detectedEvents.filter((e: any) => e.detected_date);
+
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Save detected events
     const eventsToInsert = detectedEvents.map((e: any) => ({
       user_id: user.id,
       source_type: "document",
