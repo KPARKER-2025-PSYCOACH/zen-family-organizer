@@ -244,103 +244,101 @@ const CalendarPage = () => {
             </Card>
           </div>
 
-          {/* Calendar View */}
+          {/* Calendar + Weekly Planner side by side */}
           <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex flex-col lg:flex-row gap-6">
-                  <div className="flex justify-center">
-                    <CalendarComponent
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      className="rounded-md border"
-                      modifiers={{ hasEvent: eventDates }}
-                      modifiersStyles={{
-                        hasEvent: {
-                          fontWeight: "bold",
-                          textDecoration: "underline",
-                          textDecorationColor: "hsl(175, 26%, 34%)",
-                        },
-                      }}
-                    />
-                  </div>
-
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-semibold">
-                        {date?.toLocaleDateString("en-GB", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                        })}
-                      </h3>
-                      <Button
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => setAddEventOpen(true)}
-                      >
-                        <Plus className="h-4 w-4" />
-                        Add Event
-                      </Button>
+            <div className="grid xl:grid-cols-2 gap-6">
+              {/* Calendar View */}
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex flex-col gap-6">
+                    <div className="flex justify-center">
+                      <CalendarComponent
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        className="rounded-md border"
+                        modifiers={{ hasEvent: eventDates }}
+                        modifiersStyles={{
+                          hasEvent: {
+                            fontWeight: "bold",
+                            textDecoration: "underline",
+                            textDecorationColor: "hsl(175, 26%, 34%)",
+                          },
+                        }}
+                      />
                     </div>
 
-                    {selectedDateEvents.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <CalendarIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                        <p>No events on this day</p>
-                        <p className="text-sm mt-1">
-                          Connect a calendar or add events manually
-                        </p>
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold">
+                          {date?.toLocaleDateString("en-GB", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "long",
+                          })}
+                        </h3>
+                        <Button
+                          size="sm"
+                          className="gap-2"
+                          onClick={() => setAddEventOpen(true)}
+                        >
+                          <Plus className="h-4 w-4" />
+                          Add Event
+                        </Button>
                       </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {selectedDateEvents.map((event) => (
-                          <div
-                            key={event.id}
-                            className="p-3 rounded-lg border bg-secondary/50"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <p className="font-medium">{event.title}</p>
-                                <p className="text-sm text-muted-foreground">
-                                  {event.all_day
-                                    ? "All day"
-                                    : `${new Date(event.start_time).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} - ${new Date(event.end_time).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
-                                </p>
-                                {event.description && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    {event.description}
+
+                      {selectedDateEvents.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <CalendarIcon className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No events on this day</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {selectedDateEvents.map((event) => (
+                            <div
+                              key={event.id}
+                              className="p-3 rounded-lg border bg-secondary/50"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <p className="font-medium">{event.title}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {event.all_day
+                                      ? "All day"
+                                      : `${new Date(event.start_time).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} - ${new Date(event.end_time).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`}
                                   </p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {event.source !== "manual" && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {event.source === "synced" ? "📅" : event.source === "email" ? "📧" : "📄"}
-                                  </span>
-                                )}
-                                <Badge
-                                  variant="outline"
-                                  className={CATEGORY_COLORS[event.category] || CATEGORY_COLORS.other}
-                                >
-                                  {event.category}
-                                </Badge>
+                                  {event.description && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      {event.description}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {event.source !== "manual" && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {event.source === "synced" ? "📅" : event.source === "email" ? "📧" : "📄"}
+                                    </span>
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className={CATEGORY_COLORS[event.category] || CATEGORY_COLORS.other}
+                                  >
+                                    {event.category}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
 
-          {/* Weekly Planner */}
-          <div className="lg:col-span-2">
-            <WeeklyPlanner weekStart={date || new Date()} />
+              {/* Weekly Planner */}
+              <WeeklyPlanner weekStart={date || new Date()} />
+            </div>
           </div>
         </div>
       </div>
