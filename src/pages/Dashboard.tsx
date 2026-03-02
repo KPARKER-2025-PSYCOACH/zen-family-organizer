@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, Mail, UtensilsCrossed, Gift, Settings, Plus, LogOut, PoundSterling, Users, CheckSquare, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { format, isToday, isTomorrow, parseISO } from "date-fns";
+import { format, isToday, isTomorrow, parseISO, addDays } from "date-fns";
 import FamilyMembersSection from "@/components/family/FamilyMembersSection";
 import { useFamilyMembers } from "@/hooks/useFamilyMembers";
 import { useCalendarData, type CalendarEventRow } from "@/hooks/useCalendarData";
@@ -30,22 +32,24 @@ interface InboxEmail {
 
 interface TasksMember { id: string; name: string; tasks: { id: string; text: string; category: string; }[]; }
 
+const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { members, loading: membersLoading, addMember, updateMember, deleteMember } = useFamilyMembers();
   const { events, detectedEvents, fetchEvents, fetchDetectedEvents } = useCalendarData();
   const { grandTotal, totalByCategory } = useSpendingData(new Date().getFullYear());
-  const { lists: todoLists } = useTodoData();
+  const { lists: todoLists, addItem, toggleItem, deleteItem } = useTodoData();
   const { mealPlan: plannedMeals } = useMealData();
   const [inboxEmails, setInboxEmails] = useState<InboxEmail[]>([]);
   const [inboxLoading, setInboxLoading] = useState(false);
   const [taskMembers, setTaskMembers] = useState<TasksMember[]>([]);
+  const [newTodoText, setNewTodoText] = useState("");
 
   useEffect(() => {
     fetchEvents();
     fetchDetectedEvents();
     fetchInbox();
-    // Family tasks still localStorage for now
     try {
       const raw = localStorage.getItem("parentassist_family_tasks");
       if (raw) {
@@ -104,9 +108,23 @@ const Dashboard = () => {
   const starredList = todoLists.find(l => l.starred);
   const starredPending = starredList ? starredList.items.filter(i => !i.completed) : [];
   const totalTodoItems = todoLists.reduce((sum, l) => sum + l.items.filter(i => !i.completed).length, 0);
-  const totalMealsPlanned = Object.values(plannedMeals).reduce((sum, meals) => sum + meals.length, 0);
   const totalAssignedTasks = taskMembers.reduce((sum, m) => sum + m.tasks.length, 0);
   const topCategories = totalByCategory.filter(c => c.total > 0).sort((a, b) => b.total - a.total).slice(0, 3);
+
+  // Next 3 days meal planner
+  const today = new Date();
+  const todayDayIndex = (today.getDay() + 6) % 7; // Monday=0
+  const next3Days = [0, 1, 2].map(offset => {
+    const dayIndex = (todayDayIndex + offset) % 7;
+    return DAYS_OF_WEEK[dayIndex];
+  });
+  const totalMealsPlanned = Object.values(plannedMeals).reduce((sum, meals) => sum + meals.length, 0);
+
+  const handleAddTodoItem = () => {
+    if (!starredList || !newTodoText.trim()) return;
+    addItem(starredList.id, newTodoText.trim());
+    setNewTodoText("");
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -209,7 +227,7 @@ const Dashboard = () => {
             )}
           </DashboardCard>
 
-          {/* To-do list */}
+          {/* To-do list - now editable */}
           <DashboardCard
             icon={<CheckSquare className="h-6 w-6" />}
             title="To do list"
@@ -235,14 +253,29 @@ const Dashboard = () => {
                 ) : (
                   starredPending.slice(0, 5).map(item => (
                     <div key={item.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/50 border">
-                      <div className="h-3 w-3 rounded-full border-2 border-muted-foreground/40 shrink-0" />
-                      <span className="text-sm truncate">{item.text}</span>
+                      <Checkbox
+                        checked={item.completed}
+                        onCheckedChange={() => toggleItem(starredList.id, item.id)}
+                      />
+                      <span className="text-sm truncate flex-1">{item.text}</span>
                     </div>
                   ))
                 )}
                 {starredPending.length > 5 && (
                   <p className="text-xs text-muted-foreground text-center">+{starredPending.length - 5} more</p>
                 )}
+                {/* Add item inline */}
+                <form onSubmit={e => { e.preventDefault(); handleAddTodoItem(); }} className="flex gap-2 pt-1">
+                  <Input
+                    placeholder="Add item…"
+                    value={newTodoText}
+                    onChange={e => setNewTodoText(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <Button type="submit" size="sm" variant="secondary" className="h-8" disabled={!newTodoText.trim()}>
+                    <Plus className="h-3 w-3" />
+                  </Button>
+                </form>
                 <Link to="/todos" className="block text-sm text-primary hover:underline text-center pt-1">
                   View all lists →
                 </Link>
@@ -275,11 +308,11 @@ const Dashboard = () => {
 
         {/* Bottom rows: 2 columns — Meals/Tasks then Spending/Gifts */}
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Meal planning */}
+          {/* Meal planning - next 3 days */}
           <DashboardCard
             icon={<UtensilsCrossed className="h-6 w-6" />}
             title="Meal planner"
-            description="This week's meals and shopping list"
+            description="Next 3 days at a glance"
             actionLabel="Plan meals"
             actionHref="/meals"
             backgroundImage={kitchenImage}
@@ -292,12 +325,17 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="pt-2 space-y-2">
-                {Object.entries(plannedMeals).slice(0, 3).map(([day, meals]) => (
-                  <div key={day} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border">
-                    <span className="text-sm font-medium w-20 shrink-0">{day}</span>
-                    <span className="text-sm text-muted-foreground truncate">{meals.map(m => m.name).join(", ")}</span>
-                  </div>
-                ))}
+                {next3Days.map(day => {
+                  const meals = plannedMeals[day] || [];
+                  return (
+                    <div key={day} className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border">
+                      <span className="text-sm font-medium w-24 shrink-0">{day}</span>
+                      <span className="text-sm text-muted-foreground truncate">
+                        {meals.length > 0 ? meals.map(m => m.name).join(", ") : "No meals planned"}
+                      </span>
+                    </div>
+                  );
+                })}
                 <Link to="/meals" className="block text-sm text-primary hover:underline text-center pt-1">
                   {totalMealsPlanned} meals planned →
                 </Link>
