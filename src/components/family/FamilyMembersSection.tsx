@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, Camera, Cake, Heart, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +46,8 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
   const [saving, setSaving] = useState(false);
   const [customDietaryInput, setCustomDietaryInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
   const openAdd = () => {
     setEditingId(null);
     setForm({ ...emptyForm(), color: MEMBER_COLORS[members.length % MEMBER_COLORS.length] });
@@ -112,12 +114,20 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const confirmDelete = (id: string, name: string) => {
+    setDeleteConfirmId(id);
+    setDeleteConfirmName(name);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await onDelete(id);
+      await onDelete(deleteConfirmId);
       toast.success("Member removed");
     } catch {
       toast.error("Failed to remove");
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -184,7 +194,7 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
                       </div>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(m.id); }}
+                      onClick={(e) => { e.stopPropagation(); confirmDelete(m.id, m.name); }}
                       className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -359,7 +369,7 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
                 {saving ? "Saving…" : editingId ? "Update Member" : "Add Member"}
               </Button>
               {editingId && (
-                <Button variant="destructive" onClick={() => { handleDelete(editingId); setDialogOpen(false); }}>
+                <Button variant="destructive" onClick={() => { confirmDelete(editingId, form.name || ""); setDialogOpen(false); }}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
               )}
@@ -367,6 +377,23 @@ const FamilyMembersSection = ({ members, loading, onAdd, onUpdate, onDelete }: F
           </div>
         </DialogContent>
       </Dialog>
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {deleteConfirmName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove {deleteConfirmName} from your family. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 };
