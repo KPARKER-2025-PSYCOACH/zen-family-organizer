@@ -81,6 +81,7 @@ export function useCalendarData() {
       .from("detected_events")
       .select("*")
       .eq("status", "pending")
+      .eq("source_type", "document")
       .order("created_at", { ascending: false });
     if (error) {
       console.error("Error fetching detected events:", error);
@@ -195,17 +196,61 @@ export function useCalendarData() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Add to calendar events
+    // Add to calendar events — handle multi-day events
+    const startDate = new Date(detected.detected_date);
+    const endDate = detected.detected_end_date ? new Date(detected.detected_end_date) : startDate;
+    
+    // If end date is different from start, create the event spanning both days
     const { error: insertError } = await supabase.from("calendar_events").insert({
       user_id: user.id,
       title: detected.title,
       description: detected.description,
-      start_time: detected.detected_date,
-      end_time: detected.detected_end_date || detected.detected_date,
+      start_time: startDate.toISOString(),
+      end_time: endDate.toISOString(),
       all_day: true,
       category: detected.category,
       source: detected.source_type === "email" ? "email" : "document",
     } as any);
+
+    // Also sync to Google Calendar if connected
+    const { data: googleConn } = await supabase
+      .from("calendar_connections")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("provider", "google")
+      .eq("connected", true)
+      .single();
+
+    if (googleConn && !insertError) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+          await fetch(
+            `https://${projectId}.supabase.co/functions/v1/google-calendar-sync`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({
+                action: "add_event",
+                event: {
+                  title: detected.title,
+                  description: detected.description || "",
+                  start_date: startDate.toISOString().split("T")[0],
+                  end_date: endDate.toISOString().split("T")[0],
+                  all_day: true,
+                },
+              }),
+            }
+          );
+        }
+      } catch (e) {
+        console.error("Failed to sync to Google Calendar:", e);
+      }
+    }
 
     if (insertError) {
       toast({ title: "Failed to add event", variant: "destructive" });

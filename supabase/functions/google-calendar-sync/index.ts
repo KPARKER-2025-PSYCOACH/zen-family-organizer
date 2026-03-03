@@ -95,7 +95,72 @@ serve(async (req) => {
 
     const accessToken = await refreshTokenIfNeeded(connection, serviceClient);
 
-    // Fetch events from Google Calendar (next 3 months)
+    // Parse action from body
+    let body: any = {};
+    try { body = await req.json(); } catch { /* empty body */ }
+    const action = body.action || "sync";
+
+    // ============ ADD EVENT to Google Calendar ============
+    if (action === "add_event") {
+      const { event } = body;
+      if (!event || !event.title) {
+        return new Response(JSON.stringify({ error: "Missing event data" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Build Google Calendar event body
+      const googleEvent: any = {
+        summary: event.title,
+        description: event.description || "",
+      };
+
+      if (event.all_day) {
+        // For all-day events, Google expects date (not dateTime) and end date is exclusive
+        const startDate = event.start_date;
+        const endDate = event.end_date || startDate;
+        // Google all-day end date is exclusive, so add 1 day
+        const endDateObj = new Date(endDate);
+        endDateObj.setDate(endDateObj.getDate() + 1);
+        const exclusiveEnd = endDateObj.toISOString().split("T")[0];
+
+        googleEvent.start = { date: startDate };
+        googleEvent.end = { date: exclusiveEnd };
+      } else {
+        googleEvent.start = { dateTime: event.start_time, timeZone: "Europe/London" };
+        googleEvent.end = { dateTime: event.end_time, timeZone: "Europe/London" };
+      }
+
+      const insertRes = await fetch(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(googleEvent),
+        }
+      );
+
+      if (!insertRes.ok) {
+        const err = await insertRes.text();
+        console.error("Google Calendar insert error:", err);
+        return new Response(JSON.stringify({ error: "Failed to add event to Google Calendar" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const createdEvent = await insertRes.json();
+      return new Response(
+        JSON.stringify({ success: true, googleEventId: createdEvent.id }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ============ SYNC: fetch events from Google Calendar (next 3 months) ============
     const now = new Date();
     const threeMonthsLater = new Date(now);
     threeMonthsLater.setMonth(threeMonthsLater.getMonth() + 3);
@@ -125,7 +190,6 @@ serve(async (req) => {
     const calData = await calRes.json();
     const googleEvents = calData.items || [];
 
-    // Upsert events into our database
     const eventsToUpsert = googleEvents.map((event: any) => ({
       user_id: user.id,
       title: event.summary || "Untitled",
@@ -139,7 +203,6 @@ serve(async (req) => {
       calendar_connection_id: connection.id,
     }));
 
-    // Delete old synced events and insert fresh
     await serviceClient
       .from("calendar_events")
       .delete()
@@ -154,7 +217,6 @@ serve(async (req) => {
       if (insertError) console.error("Insert events error:", insertError);
     }
 
-    // Update last synced
     await serviceClient
       .from("calendar_connections")
       .update({ last_synced: new Date().toISOString() })
