@@ -352,7 +352,14 @@ const CalendarPage = () => {
 
       <DetectedEventsDialog
         open={detectedDialogOpen}
-        onOpenChange={setDetectedDialogOpen}
+        onOpenChange={(open) => {
+          setDetectedDialogOpen(open);
+          // When closing, dismiss all remaining pending document-detected events
+          if (!open && detectedEvents.length > 0) {
+            const documentEvents = detectedEvents.filter(e => e.source_type === "document");
+            documentEvents.forEach(e => dismissDetectedEvent(e.id));
+          }
+        }}
         events={detectedEvents}
         onApprove={approveDetectedEvent}
         onDismiss={dismissDetectedEvent}

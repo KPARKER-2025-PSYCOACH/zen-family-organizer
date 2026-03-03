@@ -125,6 +125,10 @@ const EmailsPage = () => {
         await fetchAllItems();
         await fetchDetectedEvents();
         await fetchEmailConnections();
+        // Show detected events dialog if there are event-type items
+        if (data.count > 0) {
+          setDetectedDialogOpen(true);
+        }
       } else {
         toast({ title: "Scan failed", description: data.error, variant: "destructive" });
       }
@@ -311,12 +315,12 @@ const EmailsPage = () => {
           />
         </div>
 
-        {/* Still show pending events from calendar data for approval dialog */}
-        {detectedEvents.length > 0 && (
+        {/* Show pending email events for calendar approval */}
+        {eventItems.length > 0 && (
           <div className="mt-6">
             <Button onClick={() => setDetectedDialogOpen(true)} variant="outline" className="gap-2">
-              <Badge className="bg-primary text-primary-foreground">{detectedEvents.length}</Badge>
-              Review All Pending Calendar Events
+              <Badge className="bg-primary text-primary-foreground">{eventItems.length}</Badge>
+              Review Events to Add to Calendar
             </Button>
           </div>
         )}
@@ -325,9 +329,13 @@ const EmailsPage = () => {
       <DetectedEventsDialog
         open={detectedDialogOpen}
         onOpenChange={setDetectedDialogOpen}
-        events={detectedEvents}
-        onApprove={approveDetectedEvent}
-        onDismiss={dismissDetectedEvent}
+        events={eventItems.map(item => ({
+          ...item,
+          user_id: "",
+          created_at: "",
+        })) as any}
+        onApprove={async (event) => { await approveDetectedEvent(event as any); await fetchAllItems(); }}
+        onDismiss={async (id) => { await dismissDetectedEvent(id); await fetchAllItems(); }}
       />
     </div>
   );
