@@ -5,17 +5,17 @@ export function exportSpendingToXlsx(entries: SpendingEntry[], year: number) {
   const wb = XLSX.utils.book_new();
 
   // --- Sheet 1: Annual Overview ---
-  const catTotals = SPENDING_CATEGORIES.map(cat => {
+  const catRows: { Category: string; "Annual Spend (£)": number; "Avg per Month (£)": number }[] = SPENDING_CATEGORIES.map(cat => {
     const total = entries.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0);
     const monthsUsed = new Set(entries.filter(e => e.category === cat).map(e => e.month)).size;
     return {
-      Category: cat,
+      Category: cat as string,
       "Annual Spend (£)": total,
       "Avg per Month (£)": monthsUsed > 0 ? Math.round((total / monthsUsed) * 100) / 100 : 0,
     };
   });
   const grandTotal = entries.reduce((s, e) => s + Number(e.amount), 0);
-  catTotals.push({
+  catRows.push({
     Category: "TOTAL",
     "Annual Spend (£)": grandTotal,
     "Avg per Month (£)": Math.round((grandTotal / 12) * 100) / 100,
