@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,12 +34,22 @@ export interface SpendingEntry {
   updated_at: string;
 }
 
+export interface EntryInput {
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+}
+
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
 
 export const getMonthName = (m: number) => MONTHS[m - 1] || "";
+export const getMonthShort = (m: number) => MONTHS[m - 1]?.substring(0, 3) || "";
+
+export const formatGBP = (v: number) => `£${v.toFixed(2)}`;
 
 export function useSpendingData(year: number) {
   const [entries, setEntries] = useState<SpendingEntry[]>([]);
@@ -68,10 +78,9 @@ export function useSpendingData(year: number) {
 
   useEffect(() => { fetchEntries(); }, [fetchEntries]);
 
-  const addEntry = async (entry: { date: string; description: string; amount: number; category: string }) => {
+  const addEntry = async (entry: EntryInput) => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
-
     const d = new Date(entry.date);
     const { error } = await supabase.from("spending_entries").insert({
       user_id: session.user.id,
@@ -82,11 +91,28 @@ export function useSpendingData(year: number) {
       month: d.getMonth() + 1,
       year: d.getFullYear(),
     });
-
     if (error) {
       toast({ title: "Error", description: "Failed to add entry", variant: "destructive" });
     } else {
-      toast({ title: "Entry added" });
+      toast({ title: "Expense added" });
+      fetchEntries();
+    }
+  };
+
+  const updateEntry = async (id: string, entry: EntryInput) => {
+    const d = new Date(entry.date);
+    const { error } = await supabase.from("spending_entries").update({
+      date: entry.date,
+      description: entry.description,
+      amount: entry.amount,
+      category: entry.category,
+      month: d.getMonth() + 1,
+      year: d.getFullYear(),
+    }).eq("id", id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to update entry", variant: "destructive" });
+    } else {
+      toast({ title: "Expense updated" });
       fetchEntries();
     }
   };
@@ -101,18 +127,36 @@ export function useSpendingData(year: number) {
   };
 
   // Aggregations
-  const totalByCategory = SPENDING_CATEGORIES.map(cat => ({
-    category: cat,
-    total: entries.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0),
-  }));
+  const totalByCategory = useMemo(() =>
+    SPENDING_CATEGORIES.map(cat => ({
+      category: cat,
+      total: entries.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0),
+    })), [entries]);
 
-  const totalByMonth = Array.from({ length: 12 }, (_, i) => ({
-    month: i + 1,
-    name: MONTHS[i].substring(0, 3),
-    total: entries.filter(e => e.month === i + 1).reduce((s, e) => s + Number(e.amount), 0),
-  }));
+  const totalByMonth = useMemo(() =>
+    Array.from({ length: 12 }, (_, i) => ({
+      month: i + 1,
+      name: MONTHS[i].substring(0, 3),
+      total: entries.filter(e => e.month === i + 1).reduce((s, e) => s + Number(e.amount), 0),
+    })), [entries]);
 
-  const grandTotal = entries.reduce((s, e) => s + Number(e.amount), 0);
+  const grandTotal = useMemo(() =>
+    entries.reduce((s, e) => s + Number(e.amount), 0), [entries]);
 
-  return { entries, loading, addEntry, deleteEntry, totalByCategory, totalByMonth, grandTotal, refetch: fetchEntries };
+  const topCategory = useMemo(() => {
+    const sorted = [...totalByCategory].sort((a, b) => b.total - a.total);
+    return sorted[0]?.total > 0 ? sorted[0].category : null;
+  }, [totalByCategory]);
+
+  const monthsWithData = useMemo(() =>
+    new Set(entries.map(e => e.month)).size, [entries]);
+
+  const avgPerMonth = useMemo(() =>
+    monthsWithData > 0 ? grandTotal / monthsWithData : 0, [grandTotal, monthsWithData]);
+
+  return {
+    entries, loading, addEntry, updateEntry, deleteEntry,
+    totalByCategory, totalByMonth, grandTotal, topCategory, avgPerMonth,
+    entryCount: entries.length, refetch: fetchEntries,
+  };
 }
