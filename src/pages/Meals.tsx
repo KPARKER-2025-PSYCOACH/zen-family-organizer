@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2 } from "lucide-react";
+import { Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2, GripVertical } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
 import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
 import { useMealData } from "@/hooks/useMealData";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, useDroppable, useDraggable } from "@dnd-kit/core";
 import type { Recipe, GroceryItem, DietaryRequirement, CuisineType } from "@/types";
 
 // ============ Constants ============
