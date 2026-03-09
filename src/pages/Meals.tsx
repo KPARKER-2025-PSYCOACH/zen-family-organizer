@@ -539,10 +539,10 @@ const MealsPage = () => {
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Type a meal</Label>
+                    <Label className="text-sm font-medium">Find a meal</Label>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="e.g. Spaghetti Bolognese"
+                        placeholder="Start typing to filter saved recipes..."
                         value={quickMealName}
                         onChange={e => setQuickMealName(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') { handleQuickAdd(); } }}
@@ -551,12 +551,15 @@ const MealsPage = () => {
                     </div>
                   </div>
 
-                  {recipes.length > 0 && (
+                  {filteredRecipes.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Or pick from saved recipes</Label>
+                      <Label className="text-sm font-medium">{quickMealName.trim() ? 'Matching recipes' : 'Or pick from saved recipes'}</Label>
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {recipes.map(r => (
-                          <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors" onClick={() => handleSelectRecipeForDay(r)}>
+                        {filteredRecipes.map(r => {
+                          const q = quickMealName.toLowerCase();
+                          const isMatch = q && r.title.toLowerCase().includes(q);
+                          return (
+                          <div key={r.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isMatch ? 'bg-primary/10 border-primary/30 hover:bg-primary/20' : 'bg-secondary/30 hover:bg-secondary/60'}`} onClick={() => handleSelectRecipeForDay(r)}>
                             <div>
                               <p className="font-medium text-sm">{r.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
