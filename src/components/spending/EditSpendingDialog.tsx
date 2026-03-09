@@ -1,44 +1,49 @@
-import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus } from "lucide-react";
-import { SPENDING_CATEGORIES, type EntryInput } from "@/hooks/useSpendingData";
+import { SPENDING_CATEGORIES, type SpendingEntry, type EntryInput } from "@/hooks/useSpendingData";
 
 interface Props {
-  onAdd: (entry: EntryInput) => Promise<void>;
+  entry: SpendingEntry | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSave: (id: string, data: EntryInput) => Promise<void>;
 }
 
-const AddSpendingDialog = ({ onAdd }: Props) => {
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+const EditSpendingDialog = ({ entry, open, onOpenChange, onSave }: Props) => {
+  const [date, setDate] = useState("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (entry) {
+      setDate(entry.date);
+      setDescription(entry.description || "");
+      setAmount(String(entry.amount));
+      setCategory(entry.category);
+    }
+  }, [entry]);
+
   const handleSubmit = async () => {
+    if (!entry || !category || !amount || !date) return;
     const parsed = parseFloat(amount);
-    if (!category || !amount || !date || isNaN(parsed) || parsed <= 0) return;
+    if (isNaN(parsed) || parsed <= 0) return;
     setSaving(true);
-    await onAdd({ date, description, amount: parsed, category });
+    await onSave(entry.id, { date, description, amount: parsed, category });
     setSaving(false);
-    setOpen(false);
-    setDescription("");
-    setAmount("");
-    setCategory("");
+    onOpenChange(false);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2"><Plus className="h-4 w-4" /> Add Expense</Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Expense</DialogTitle>
+          <DialogTitle>Edit Expense</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 pt-2">
           <div className="grid grid-cols-2 gap-4">
@@ -67,7 +72,7 @@ const AddSpendingDialog = ({ onAdd }: Props) => {
             <Input placeholder="What was it for?" value={description} onChange={e => setDescription(e.target.value)} />
           </div>
           <Button onClick={handleSubmit} disabled={saving || !category || !amount || parseFloat(amount) <= 0} className="w-full">
-            {saving ? "Saving..." : "Add Expense"}
+            {saving ? "Saving..." : "Update Expense"}
           </Button>
         </div>
       </DialogContent>
@@ -75,4 +80,4 @@ const AddSpendingDialog = ({ onAdd }: Props) => {
   );
 };
 
-export default AddSpendingDialog;
+export default EditSpendingDialog;
