@@ -752,6 +752,40 @@ const RecipeCard = ({ recipe, onView, onEdit, onAddToDay, onDelete }: { recipe: 
   </Card>
 );
 
+// ============ Droppable Meal Slot ============
+
+const DroppableMealSlot = ({ day, mealType, children }: { day: string; mealType: string; children: React.ReactNode }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${day}-${mealType}`,
+    data: { day, mealType },
+  });
+  return (
+    <div ref={setNodeRef} className={`rounded transition-colors ${isOver ? 'bg-primary/10 ring-1 ring-primary/30' : ''}`}>
+      {children}
+    </div>
+  );
+};
+
+// ============ Draggable Meal Item ============
+
+const DraggableMealItem = ({ meal, day, onRemove }: { meal: { id: string; name: string; mealType: string }; day: string; onRemove: () => void }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: meal.id,
+    data: { day, mealId: meal.id, mealType: meal.mealType, name: meal.name },
+  });
+  return (
+    <div ref={setNodeRef} className={`flex items-center justify-between p-1.5 rounded bg-secondary/40 border text-xs ${isDragging ? 'opacity-30' : ''}`}>
+      <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground touch-none">
+        <GripVertical className="h-3 w-3" />
+      </div>
+      <span className="truncate flex-1 mx-1">{meal.name}</span>
+      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={onRemove}>
+        <Trash2 className="h-2.5 w-2.5" />
+      </Button>
+    </div>
+  );
+};
+
 // ============ Day Card for horizontal planner ============
 
 const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, removeMealFromPlan }: {
@@ -768,18 +802,13 @@ const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, rem
         {visibleMealTypes.map(mealType => {
           const meals = getMealsForDayType(day, mealType);
           return (
-            <div key={mealType}>
+            <DroppableMealSlot key={mealType} day={day} mealType={mealType}>
               {visibleMealTypes.length > 1 && (
                 <p className="text-[10px] text-muted-foreground font-medium mb-0.5">{MEAL_TYPE_INFO[mealType].icon} {MEAL_TYPE_INFO[mealType].label}</p>
               )}
               <div className="space-y-1">
                 {meals.map(meal => (
-                  <div key={meal.id} className="flex items-center justify-between p-1.5 rounded bg-secondary/40 border text-xs">
-                    <span className="truncate flex-1">{meal.name}</span>
-                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeMealFromPlan(day, meal.id)}>
-                      <Trash2 className="h-2.5 w-2.5" />
-                    </Button>
-                  </div>
+                  <DraggableMealItem key={meal.id} meal={meal} day={day} onRemove={() => removeMealFromPlan(day, meal.id)} />
                 ))}
                 <Button
                   variant="ghost"
@@ -791,7 +820,7 @@ const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, rem
                   Add
                 </Button>
               </div>
-            </div>
+            </DroppableMealSlot>
           );
         })}
       </div>
