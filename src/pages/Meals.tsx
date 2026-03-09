@@ -307,6 +307,40 @@ const MealsPage = () => {
 
   const totalPlannedMeals = Object.values(mealPlan).flat().length;
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const data = active.data.current as { day: string; mealId: string; name: string };
+    setActiveDragId(active.id as string);
+    setActiveDragMeal({ name: data.name });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setActiveDragMeal(null);
+    if (!over) return;
+    const from = active.data.current as { day: string; mealId: string; mealType: string };
+    const to = over.data.current as { day: string; mealType: string };
+    if (!from || !to) return;
+    if (from.day === to.day && from.mealType === to.mealType) return;
+    moveMeal(from.day, from.mealId, to.day, to.mealType);
+  };
+
+  // Filtered recipes for the add-meal dialog
+  const filteredRecipes = useMemo(() => {
+    if (!quickMealName.trim()) return recipes;
+    const q = quickMealName.toLowerCase();
+    return [...recipes].sort((a, b) => {
+      const aMatch = a.title.toLowerCase().includes(q) ? 0 : 1;
+      const bMatch = b.title.toLowerCase().includes(q) ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      const aStarts = a.title.toLowerCase().startsWith(q) ? 0 : 1;
+      const bStarts = b.title.toLowerCase().startsWith(q) ? 0 : 1;
+      return aStarts - bStarts;
+    });
+  }, [recipes, quickMealName]);
+
   // ============ Render ============
 
   if (dataLoading) {
