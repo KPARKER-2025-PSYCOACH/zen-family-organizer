@@ -71,7 +71,10 @@ const MEAL_TYPE_INFO: Record<MealType, { label: string; icon: string }> = {
 
 const MealsPage = () => {
   const { members: familyMembers } = useFamilyMembers();
-  const { recipes, mealPlan, loading: dataLoading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan } = useMealData();
+  const { recipes, mealPlan, loading: dataLoading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan, moveMeal } = useMealData();
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragMeal, setActiveDragMeal] = useState<{ name: string } | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
