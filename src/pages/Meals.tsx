@@ -593,7 +593,7 @@ const MealsPage = () => {
                     </div>
                   )}
 
-                  {recipes.length === 0 && searchResults.length === 0 && (
+                  {filteredRecipes.length === 0 && recipes.length === 0 && searchResults.length === 0 && (
                     <div className="text-center py-4 text-muted-foreground">
                       <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-xs">No saved recipes yet — type a meal name above or use "Find Meals" to search</p>
