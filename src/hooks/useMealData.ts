@@ -159,5 +159,24 @@ export const useMealData = () => {
     });
   };
 
-  return { recipes, mealPlan, loading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan, setRecipes };
+  const moveMeal = async (fromDay: string, mealId: string, toDay: string, toMealType: string) => {
+    const { error } = await supabase.from("meal_plan_entries").update({
+      day_of_week: toDay,
+      meal_type: toMealType,
+    }).eq("id", mealId);
+    if (error) { toast.error("Failed to move meal"); return; }
+
+    setMealPlan(prev => {
+      const meal = (prev[fromDay] || []).find(m => m.id === mealId);
+      if (!meal) return prev;
+      const updated = { ...prev };
+      updated[fromDay] = (updated[fromDay] || []).filter(m => m.id !== mealId);
+      if (updated[fromDay].length === 0) delete updated[fromDay];
+      const movedMeal = { ...meal, mealType: toMealType as any };
+      updated[toDay] = [...(updated[toDay] || []), movedMeal];
+      return updated;
+    });
+  };
+
+  return { recipes, mealPlan, loading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan, moveMeal, setRecipes };
 };
