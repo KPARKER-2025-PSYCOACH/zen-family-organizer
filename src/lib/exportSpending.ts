@@ -20,7 +20,7 @@ export function exportSpendingToXlsx(entries: SpendingEntry[], year: number) {
     "Annual Spend (£)": grandTotal,
     "Avg per Month (£)": Math.round((grandTotal / 12) * 100) / 100,
   });
-  const overviewWs = XLSX.utils.json_to_sheet(catTotals);
+  const overviewWs = XLSX.utils.json_to_sheet(catRows);
   overviewWs["!cols"] = [{ wch: 28 }, { wch: 18 }, { wch: 18 }];
   XLSX.utils.book_append_sheet(wb, overviewWs, "Annual Overview");
 
