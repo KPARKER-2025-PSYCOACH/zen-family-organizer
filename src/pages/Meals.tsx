@@ -506,6 +506,7 @@ const MealsPage = () => {
               </Card>
             )}
 
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="space-y-4">
               {/* Row 1: Mon-Thu */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -520,6 +521,14 @@ const MealsPage = () => {
                 ))}
               </div>
             </div>
+            <DragOverlay>
+              {activeDragMeal && (
+                <div className="p-2 rounded bg-primary text-primary-foreground text-xs shadow-lg font-medium max-w-[200px] truncate">
+                  {activeDragMeal.name}
+                </div>
+              )}
+            </DragOverlay>
+            </DndContext>
 
             {/* Add meal dialog */}
             <Dialog open={!!editingDay} onOpenChange={(open) => { if (!open) setEditingDay(null); }}>
