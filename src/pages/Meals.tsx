@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -11,11 +11,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2 } from "lucide-react";
+import { Plus, Search, Users, Calendar, BookOpen, ShoppingCart, Download, Share2, Clock, ChefHat, Sparkles, Trash2, Eye, Upload, RefreshCw, Pencil, Settings2, GripVertical } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
 import RecipeEditorDialog from "@/components/meals/RecipeEditorDialog";
 import { useFamilyMembers, calculateAge } from "@/hooks/useFamilyMembers";
 import { useMealData } from "@/hooks/useMealData";
+import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor, useSensor, useSensors, useDroppable, useDraggable } from "@dnd-kit/core";
 import type { Recipe, GroceryItem, DietaryRequirement, CuisineType } from "@/types";
 
 // ============ Constants ============
@@ -70,7 +71,10 @@ const MEAL_TYPE_INFO: Record<MealType, { label: string; icon: string }> = {
 
 const MealsPage = () => {
   const { members: familyMembers } = useFamilyMembers();
-  const { recipes, mealPlan, loading: dataLoading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan } = useMealData();
+  const { recipes, mealPlan, loading: dataLoading, saveRecipe, updateRecipe, deleteRecipe, addMealToPlan, removeMealFromPlan, moveMeal } = useMealData();
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragMeal, setActiveDragMeal] = useState<{ name: string } | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const [groceryList, setGroceryList] = useState<GroceryItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<Recipe[]>([]);
@@ -303,6 +307,40 @@ const MealsPage = () => {
 
   const totalPlannedMeals = Object.values(mealPlan).flat().length;
 
+  // Drag and drop handlers
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const data = active.data.current as { day: string; mealId: string; name: string };
+    setActiveDragId(active.id as string);
+    setActiveDragMeal({ name: data.name });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setActiveDragMeal(null);
+    if (!over) return;
+    const from = active.data.current as { day: string; mealId: string; mealType: string };
+    const to = over.data.current as { day: string; mealType: string };
+    if (!from || !to) return;
+    if (from.day === to.day && from.mealType === to.mealType) return;
+    moveMeal(from.day, from.mealId, to.day, to.mealType);
+  };
+
+  // Filtered recipes for the add-meal dialog
+  const filteredRecipes = useMemo(() => {
+    if (!quickMealName.trim()) return recipes;
+    const q = quickMealName.toLowerCase();
+    return [...recipes].sort((a, b) => {
+      const aMatch = a.title.toLowerCase().includes(q) ? 0 : 1;
+      const bMatch = b.title.toLowerCase().includes(q) ? 0 : 1;
+      if (aMatch !== bMatch) return aMatch - bMatch;
+      const aStarts = a.title.toLowerCase().startsWith(q) ? 0 : 1;
+      const bStarts = b.title.toLowerCase().startsWith(q) ? 0 : 1;
+      return aStarts - bStarts;
+    });
+  }, [recipes, quickMealName]);
+
   // ============ Render ============
 
   if (dataLoading) {
@@ -468,6 +506,7 @@ const MealsPage = () => {
               </Card>
             )}
 
+            <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="space-y-4">
               {/* Row 1: Mon-Thu */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -482,6 +521,14 @@ const MealsPage = () => {
                 ))}
               </div>
             </div>
+            <DragOverlay>
+              {activeDragMeal && (
+                <div className="p-2 rounded bg-primary text-primary-foreground text-xs shadow-lg font-medium max-w-[200px] truncate">
+                  {activeDragMeal.name}
+                </div>
+              )}
+            </DragOverlay>
+            </DndContext>
 
             {/* Add meal dialog */}
             <Dialog open={!!editingDay} onOpenChange={(open) => { if (!open) setEditingDay(null); }}>
@@ -492,10 +539,10 @@ const MealsPage = () => {
                 </DialogHeader>
                 <div className="space-y-4 py-2">
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Type a meal</Label>
+                    <Label className="text-sm font-medium">Find a meal</Label>
                     <div className="flex gap-2">
                       <Input
-                        placeholder="e.g. Spaghetti Bolognese"
+                        placeholder="Start typing to filter saved recipes..."
                         value={quickMealName}
                         onChange={e => setQuickMealName(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') { handleQuickAdd(); } }}
@@ -504,12 +551,15 @@ const MealsPage = () => {
                     </div>
                   </div>
 
-                  {recipes.length > 0 && (
+                  {filteredRecipes.length > 0 && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Or pick from saved recipes</Label>
+                      <Label className="text-sm font-medium">{quickMealName.trim() ? 'Matching recipes' : 'Or pick from saved recipes'}</Label>
                       <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {recipes.map(r => (
-                          <div key={r.id} className="flex items-center justify-between p-3 rounded-lg border bg-secondary/30 hover:bg-secondary/60 cursor-pointer transition-colors" onClick={() => handleSelectRecipeForDay(r)}>
+                        {filteredRecipes.map(r => {
+                          const q = quickMealName.toLowerCase();
+                          const isMatch = q && r.title.toLowerCase().includes(q);
+                          return (
+                          <div key={r.id} className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${isMatch ? 'bg-primary/10 border-primary/30 hover:bg-primary/20' : 'bg-secondary/30 hover:bg-secondary/60'}`} onClick={() => handleSelectRecipeForDay(r)}>
                             <div>
                               <p className="font-medium text-sm">{r.title}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -518,7 +568,8 @@ const MealsPage = () => {
                             </div>
                             <Plus className="h-4 w-4 text-muted-foreground" />
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -542,7 +593,7 @@ const MealsPage = () => {
                     </div>
                   )}
 
-                  {recipes.length === 0 && searchResults.length === 0 && (
+                  {filteredRecipes.length === 0 && recipes.length === 0 && searchResults.length === 0 && (
                     <div className="text-center py-4 text-muted-foreground">
                       <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-xs">No saved recipes yet — type a meal name above or use "Find Meals" to search</p>
@@ -701,6 +752,40 @@ const RecipeCard = ({ recipe, onView, onEdit, onAddToDay, onDelete }: { recipe: 
   </Card>
 );
 
+// ============ Droppable Meal Slot ============
+
+const DroppableMealSlot = ({ day, mealType, children }: { day: string; mealType: string; children: React.ReactNode }) => {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${day}-${mealType}`,
+    data: { day, mealType },
+  });
+  return (
+    <div ref={setNodeRef} className={`rounded transition-colors ${isOver ? 'bg-primary/10 ring-1 ring-primary/30' : ''}`}>
+      {children}
+    </div>
+  );
+};
+
+// ============ Draggable Meal Item ============
+
+const DraggableMealItem = ({ meal, day, onRemove }: { meal: { id: string; name: string; mealType: string }; day: string; onRemove: () => void }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: meal.id,
+    data: { day, mealId: meal.id, mealType: meal.mealType, name: meal.name },
+  });
+  return (
+    <div ref={setNodeRef} className={`flex items-center justify-between p-1.5 rounded bg-secondary/40 border text-xs ${isDragging ? 'opacity-30' : ''}`}>
+      <div {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing p-0.5 text-muted-foreground hover:text-foreground touch-none">
+        <GripVertical className="h-3 w-3" />
+      </div>
+      <span className="truncate flex-1 mx-1">{meal.name}</span>
+      <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={onRemove}>
+        <Trash2 className="h-2.5 w-2.5" />
+      </Button>
+    </div>
+  );
+};
+
 // ============ Day Card for horizontal planner ============
 
 const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, removeMealFromPlan }: {
@@ -717,18 +802,13 @@ const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, rem
         {visibleMealTypes.map(mealType => {
           const meals = getMealsForDayType(day, mealType);
           return (
-            <div key={mealType}>
+            <DroppableMealSlot key={mealType} day={day} mealType={mealType}>
               {visibleMealTypes.length > 1 && (
                 <p className="text-[10px] text-muted-foreground font-medium mb-0.5">{MEAL_TYPE_INFO[mealType].icon} {MEAL_TYPE_INFO[mealType].label}</p>
               )}
               <div className="space-y-1">
                 {meals.map(meal => (
-                  <div key={meal.id} className="flex items-center justify-between p-1.5 rounded bg-secondary/40 border text-xs">
-                    <span className="truncate flex-1">{meal.name}</span>
-                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => removeMealFromPlan(day, meal.id)}>
-                      <Trash2 className="h-2.5 w-2.5" />
-                    </Button>
-                  </div>
+                  <DraggableMealItem key={meal.id} meal={meal} day={day} onRemove={() => removeMealFromPlan(day, meal.id)} />
                 ))}
                 <Button
                   variant="ghost"
@@ -740,7 +820,7 @@ const DayCard = ({ day, visibleMealTypes, getMealsForDayType, openDayDialog, rem
                   Add
                 </Button>
               </div>
-            </div>
+            </DroppableMealSlot>
           );
         })}
       </div>
