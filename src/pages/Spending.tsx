@@ -7,7 +7,7 @@ import {
   PoundSterling, Download, TrendingUp, BarChart3, Hash, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import PageHeader from "@/components/layout/PageHeader";
-import SpendsheetGrid from "@/components/spending/SpreadsheetGrid";
+import SpreadsheetGrid from "@/components/spending/SpreadsheetGrid";
 import SpendingCharts from "@/components/spending/SpendingCharts";
 import {
   useSpendingData, SPENDING_CATEGORIES, getMonthName, getMonthShort, formatGBP,
