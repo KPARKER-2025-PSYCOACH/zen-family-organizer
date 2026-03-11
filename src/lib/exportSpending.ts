@@ -1,11 +1,11 @@
 import * as XLSX from "xlsx";
-import { SpendingEntry, SPENDING_CATEGORIES, getMonthName, formatGBP } from "@/hooks/useSpendingData";
+import { SpendingEntry, SPENDING_CATEGORIES, getMonthName } from "@/hooks/useSpendingData";
 
 export function exportSpendingToXlsx(entries: SpendingEntry[], year: number) {
   const wb = XLSX.utils.book_new();
 
   // --- Sheet 1: Annual Overview ---
-  const catRows: { Category: string; "Annual Spend (£)": number; "Avg per Month (£)": number }[] = SPENDING_CATEGORIES.map(cat => {
+  const catRows = SPENDING_CATEGORIES.map(cat => {
     const total = entries.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0);
     const monthsUsed = new Set(entries.filter(e => e.category === cat).map(e => e.month)).size;
     return {
@@ -33,33 +33,50 @@ export function exportSpendingToXlsx(entries: SpendingEntry[], year: number) {
   chartsWs["!cols"] = [{ wch: 14 }, { wch: 14 }];
   XLSX.utils.book_append_sheet(wb, chartsWs, "Charts Data");
 
-  // --- Sheets 3-14: Monthly sheets ---
+  // --- Sheets 3-14: Monthly sheets with CATEGORY COLUMNS ---
+  const catHeaders = SPENDING_CATEGORIES.map(c => c as string);
+  const headers = ["Date", "Description", ...catHeaders];
+
   for (let m = 1; m <= 12; m++) {
     const monthEntries = entries
       .filter(e => e.month === m)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-    const rows = monthEntries.map(e => ({
-      Date: new Date(e.date).toLocaleDateString("en-GB"),
-      Description: e.description || "",
-      Category: e.category,
-      "Amount (£)": Number(e.amount),
-    }));
+    const rows: (string | number)[][] = [];
+    rows.push(headers);
 
-    // Add category subtotals
-    rows.push({ Date: "", Description: "", Category: "", "Amount (£)": 0 });
-    rows.push({ Date: "", Description: "CATEGORY TOTALS", Category: "", "Amount (£)": 0 });
-    SPENDING_CATEGORIES.forEach(cat => {
-      const catTotal = monthEntries.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0);
-      if (catTotal > 0) {
-        rows.push({ Date: "", Description: "", Category: cat, "Amount (£)": catTotal });
+    for (const e of monthEntries) {
+      const row: (string | number)[] = [
+        new Date(e.date).toLocaleDateString("en-GB"),
+        e.description || "",
+      ];
+      for (const cat of SPENDING_CATEGORIES) {
+        row.push(e.category === cat ? Number(e.amount) : "");
       }
-    });
-    const monthTotal = monthEntries.reduce((s, e) => s + Number(e.amount), 0);
-    rows.push({ Date: "", Description: "MONTH TOTAL", Category: "", "Amount (£)": monthTotal });
+      rows.push(row);
+    }
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [{ wch: 12 }, { wch: 30 }, { wch: 28 }, { wch: 14 }];
+    // Blank row then totals
+    rows.push([]);
+    const totalsRow: (string | number)[] = ["", "TOTALS"];
+    for (const cat of SPENDING_CATEGORIES) {
+      const catTotal = monthEntries.filter(e => e.category === cat).reduce((s, e) => s + Number(e.amount), 0);
+      totalsRow.push(catTotal > 0 ? catTotal : "");
+    }
+    rows.push(totalsRow);
+
+    const monthTotal = monthEntries.reduce((s, e) => s + Number(e.amount), 0);
+    const grandRow: (string | number)[] = ["", "MONTH TOTAL"];
+    // Put month total in first category column
+    grandRow.push(monthTotal);
+    rows.push(grandRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const colWidths = [{ wch: 12 }, { wch: 22 }];
+    for (let i = 0; i < SPENDING_CATEGORIES.length; i++) {
+      colWidths.push({ wch: 14 });
+    }
+    ws["!cols"] = colWidths;
     XLSX.utils.book_append_sheet(wb, ws, getMonthName(m));
   }
 
